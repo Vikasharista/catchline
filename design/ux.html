@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<!--
+  Catchline app shell — visual source of truth.
+  Extracted from the supplied design-canvas prototype (Sidebar + TopBar components).
+  It covers the app shell only (left nav + top bar). Screen content (Draft, Inbox,
+  Review, Compare, Ask, Award) is not mocked here and is built from PRD §7.2–7.10
+  using these same tokens.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Catchline — app shell reference</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap">
+<style>
+  :root {
+    --cl-bg: #FFFFFF;
+    --cl-bg-subtle: #FAF6F3;
+    --cl-border: #E6E3E0;
+    --cl-text: #141414;
+    --cl-text-muted: #6B6B6B;
+    --cl-text-faint: #8A8A8A;
+    --cl-accent: #E8573B;
+    --cl-accent-bg: #FDECE7;
+    --cl-success: #2E8B57;
+    --cl-success-bg: #EAF3ED;
+    --cl-font: 'Instrument Sans', system-ui, sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: var(--cl-font); color: var(--cl-text); }
+  .app-shell { display: flex; height: 100vh; }
+  .main-col { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .content { flex: 1; overflow: auto; background: var(--cl-bg-subtle); }
+
+  /* Sidebar */
+  aside.sidebar {
+    width: 240px; flex: 0 0 240px; height: 100%; box-sizing: border-box;
+    border-right: 1px solid var(--cl-border); display: flex; flex-direction: column;
+    background: var(--cl-bg);
+  }
+  .sidebar-brand { padding: 20px 20px 16px; display: flex; align-items: center; gap: 9px; }
+  .sidebar-brand span { font-size: 17px; font-weight: 700; letter-spacing: -0.02em; }
+  .sidebar-label { padding: 0 20px 10px; font-size: 9.5px; font-weight: 600; letter-spacing: 0.12em; color: var(--cl-text-faint); }
+  nav.sidebar-nav { display: flex; flex-direction: column; gap: 2px; padding: 0 10px; }
+  .nav-row { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 6px; cursor: pointer; color: var(--cl-text-muted); }
+  .nav-row.active { background: var(--cl-accent-bg); color: var(--cl-text); }
+  .nav-num { width: 18px; height: 18px; flex: 0 0 18px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; font-variant-numeric: tabular-nums; background: #F2F2F2; color: var(--cl-text-faint); }
+  .nav-row.active .nav-num { background: var(--cl-accent); color: #fff; }
+  .nav-row.done .nav-num { background: var(--cl-success-bg); color: var(--cl-success); }
+  .nav-row span.label { flex: 1; font-size: 13.5px; font-weight: 500; letter-spacing: -0.01em; }
+  .nav-row.active span.label { font-weight: 600; }
+  .sidebar-rfx { margin: 0 14px 16px; padding: 14px; background: var(--cl-bg-subtle); border: 1px solid var(--cl-border); border-radius: 8px; }
+  .sidebar-rfx-label { font-size: 9.5px; font-weight: 600; letter-spacing: 0.12em; color: var(--cl-text-faint); margin-bottom: 6px; }
+  .sidebar-rfx-id { font-size: 13px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 8px; }
+  .sidebar-rfx-stats { display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; color: var(--cl-text-muted); font-variant-numeric: tabular-nums; }
+  .sidebar-rfx-stats .row { display: flex; justify-content: space-between; }
+
+  /* Topbar */
+  header.topbar {
+    height: 64px; flex: 0 0 64px; box-sizing: border-box; border-bottom: 1px solid var(--cl-border);
+    display: flex; align-items: center; gap: 18px; padding: 0 24px; background: var(--cl-bg);
+  }
+  .topbar-crumb { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--cl-text-muted); white-space: nowrap; }
+  .topbar-crumb .sep { color: var(--cl-border); }
+  .topbar-crumb .current { color: var(--cl-text); font-weight: 600; }
+  .topbar-search { flex: 1; max-width: 420px; margin: 0 auto; display: flex; align-items: center; gap: 9px; height: 36px; padding: 0 12px; border: 1px solid var(--cl-border); border-radius: 8px; }
+  .topbar-search span.hint { flex: 1; font-size: 13px; color: var(--cl-text-faint); }
+  .topbar-search kbd { font-size: 10.5px; color: var(--cl-text-faint); border: 1px solid var(--cl-border); border-radius: 4px; padding: 2px 5px; font-weight: 500; }
+  .agents-pill { display: flex; align-items: center; gap: 7px; height: 30px; padding: 0 11px; border-radius: 15px; background: var(--cl-accent-bg); white-space: nowrap; }
+  .agents-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--cl-accent); }
+  .agents-pill span.label { font-size: 12px; font-weight: 600; color: #C2362B; }
+  .topbar-btn { display: flex; align-items: center; gap: 7px; height: 32px; padding: 0 11px; border: 1px solid var(--cl-border); border-radius: 8px; background: #fff; cursor: pointer; font-family: inherit; font-size: 12px; font-weight: 500; color: var(--cl-text-muted); }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--cl-text); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 11.5px; font-weight: 600; letter-spacing: 0.02em; }
+</style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E8573B" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12c4.5-5.5 10.5-7.5 17-7-1.8 4.6-1.8 9.4 0 14-6.5.5-12.5-1.5-17-7z"/><path d="M19 5.5c1.6 1.3 2.6 3.1 3 6.5-.4 3.4-1.4 5.2-3 6.5"/><circle cx="7.5" cy="12" r="1.1" fill="#E8573B" stroke="none"/></svg>
+        <span>Catchline</span>
+      </div>
+      <div class="sidebar-label">SOURCING EVENT</div>
+      <nav class="sidebar-nav">
+        <!-- steps: Draft, Inbox, Review, Compare, Ask, Award — done / active / locked, per PRD §7.1 -->
+        <div class="nav-row done"><span class="nav-num">1</span><span class="label">Draft</span></div>
+        <div class="nav-row active"><span class="nav-num">2</span><span class="label">Inbox</span></div>
+        <div class="nav-row"><span class="nav-num">3</span><span class="label">Review</span></div>
+        <div class="nav-row"><span class="nav-num">4</span><span class="label">Compare</span></div>
+        <div class="nav-row"><span class="nav-num">5</span><span class="label">Ask</span></div>
+        <div class="nav-row"><span class="nav-num">6</span><span class="label">Award</span></div>
+      </nav>
+      <div style="flex:1"></div>
+      <div class="sidebar-rfx">
+        <div class="sidebar-rfx-label">CURRENT RFX</div>
+        <div class="sidebar-rfx-id">RFQ-2026-FROZ-017</div>
+        <div class="sidebar-rfx-stats">
+          <div class="row"><span>Lines</span><span>30</span></div>
+          <div class="row"><span>Suppliers</span><span>5</span></div>
+        </div>
+      </div>
+    </aside>
+    <div class="main-col">
+      <header class="topbar">
+        <div class="topbar-crumb">
+          <span>RFQ-2026-FROZ-017</span><span class="sep">/</span><span class="current">Inbox</span>
+        </div>
+        <div class="topbar-search">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8A8A8A" stroke-width="1.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg>
+          <span class="hint">Ask anything about this RFx</span>
+          <kbd>⌘K</kbd>
+        </div>
+        <div class="agents-pill"><span class="dot"></span><span class="label">Agents: 1 working</span></div>
+        <button class="topbar-btn">Activity</button>
+        <div class="avatar">CL</div>
+      </header>
+      <div class="content">
+        <!-- Per-screen content built in web/templates/, following PRD §7.2–7.10 -->
+      </div>
+    </div>
+  </div>
+</body>
+</html>

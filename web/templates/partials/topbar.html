@@ -1,0 +1,18 @@
+<header class="topbar">
+  <div class="topbar-crumb">
+    <span>{{ rfx.rfx_number if rfx else 'No RFx' }}</span>
+    <span class="sep">/</span>
+    <span class="current">{{ crumb or active_step }}</span>
+  </div>
+  <div class="topbar-search" id="ask-anything">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8A8A8A" stroke-width="1.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg>
+    <span class="hint">Ask anything about this RFx</span>
+    <kbd>⌘K</kbd>
+  </div>
+  <div class="agents-pill" id="agents-pill" data-count="{{ agents_working|default(0) }}">
+    <span class="dot"></span>
+    <span class="label">Agents: {{ agents_working|default(0) }} working</span>
+  </div>
+  <button class="topbar-btn" id="activity-toggle">Activity</button>
+  <div class="avatar">CL</div>
+</header>

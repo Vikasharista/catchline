@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+data/db.sqlite3
+data/inbox/
+data/outbox/
+data/cache/
+*.log
+.DS_Store
+.pytest_cache/

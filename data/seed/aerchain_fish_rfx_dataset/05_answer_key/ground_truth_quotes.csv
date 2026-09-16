@@ -1,0 +1,86 @@
+supplier,supplier_name,line,species,form,grade,native_price,native_unit,currency,incoterm,net_fraction,kg_per_unit,fx_units_per_eur,freight_adder_eur_kg,eur_per_kg_net_dap,source,expected_flags
+S1,Fjordline Seafood AS,L01,Atlantic salmon (farmed),"HOG, frozen",2-3 kg,80.73,NOK/kg,NOK,FCA Alesund,1.0,1.0,11.7,0.35,7.25,quoted,FX NOK; freight adder 0.35; conditional 2% rebate if >150 t
+S4,Oceanis Trading SARL,L01,Atlantic salmon (farmed),"HOG, frozen",2-3 kg,6.93,EUR/kg,EUR,CIF Rotterdam,1.0,1.0,1.0,0.22,7.15,quoted,freight adder 0.22
+S5,Baltic Blue Foods Sp. z o.o.,L01,Atlantic salmon (farmed),"HOG, frozen",2-3 kg,6.91,EUR/kg,EUR,EXW Gdynia + 0.18,1.0,1.0,1.0,0.0,6.91,same as last year (buyer contract file),'same as last year' - resolved from contract file (last year was DAP); AMBIGUOUS whether the new 0.18 freight applies - ask buyer/supplier
+S1,Fjordline Seafood AS,L02,Atlantic salmon (farmed),"HOG, frozen",3-4 kg,80.61,NOK/kg,NOK,FCA Alesund,1.0,1.0,11.7,0.35,7.24,quoted,FX NOK; freight adder 0.35; conditional 2% rebate if >150 t
+S4,Oceanis Trading SARL,L02,Atlantic salmon (farmed),"HOG, frozen",3-4 kg,7.22,EUR/kg,EUR,CIF Rotterdam,1.0,1.0,1.0,0.22,7.44,quoted,freight adder 0.22
+S5,Baltic Blue Foods Sp. z o.o.,L02,Atlantic salmon (farmed),"HOG, frozen",3-4 kg,7.3,EUR/kg,EUR,EXW Gdynia + 0.18,1.0,1.0,1.0,0.0,7.3,same as last year (buyer contract file),'same as last year' - resolved from contract file (last year was DAP); AMBIGUOUS whether the new 0.18 freight applies - ask buyer/supplier
+S1,Fjordline Seafood AS,L03,Atlantic salmon (farmed),"HOG, frozen",4-5 kg,86.58,NOK/kg,NOK,FCA Alesund,1.0,1.0,11.7,0.35,7.75,quoted,FX NOK; freight adder 0.35; conditional 2% rebate if >150 t
+S4,Oceanis Trading SARL,L03,Atlantic salmon (farmed),"HOG, frozen",4-5 kg,7.6,EUR/kg,EUR,CIF Rotterdam,1.0,1.0,1.0,0.22,7.82,quoted,freight adder 0.22
+S5,Baltic Blue Foods Sp. z o.o.,L03,Atlantic salmon (farmed),"HOG, frozen",4-5 kg,7.51,EUR/kg,EUR,EXW Gdynia + 0.18,1.0,1.0,1.0,0.18,7.69,quoted,freight adder 0.18; EXW; supplier-stated freight approx 0.18
+S1,Fjordline Seafood AS,L04,Atlantic salmon (farmed),"HOG, frozen",5-6 kg,89.04,NOK/kg,NOK,FCA Alesund,1.0,1.0,11.7,0.35,7.96,quoted,FX NOK; freight adder 0.35; conditional 2% rebate if >150 t
+S4,Oceanis Trading SARL,L04,Atlantic salmon (farmed),"HOG, frozen",5-6 kg,8.34,EUR/kg,EUR,CIF Rotterdam,1.0,1.0,1.0,0.22,8.56,quoted,freight adder 0.22
+S5,Baltic Blue Foods Sp. z o.o.,L04,Atlantic salmon (farmed),"HOG, frozen",5-6 kg,7.98,EUR/kg,EUR,EXW Gdynia + 0.18,1.0,1.0,1.0,0.18,8.16,quoted,freight adder 0.18; EXW; supplier-stated freight approx 0.18
+S1,Fjordline Seafood AS,L05,Atlantic salmon (farmed),"HOG, frozen",6+ kg,95.71,NOK/kg,NOK,FCA Alesund,1.0,1.0,11.7,0.35,8.53,quoted,FX NOK; freight adder 0.35; conditional 2% rebate if >150 t
+S4,Oceanis Trading SARL,L05,Atlantic salmon (farmed),"HOG, frozen",6+ kg,8.33,EUR/kg,EUR,CIF Rotterdam,1.0,1.0,1.0,0.22,8.55,quoted,freight adder 0.22
+S5,Baltic Blue Foods Sp. z o.o.,L05,Atlantic salmon (farmed),"HOG, frozen",6+ kg,8.06,EUR/kg,EUR,EXW Gdynia + 0.18,1.0,1.0,1.0,0.0,8.06,same as last year (buyer contract file),'same as last year' - resolved from contract file (last year was DAP); AMBIGUOUS whether the new 0.18 freight applies - ask buyer/supplier
+S1,Fjordline Seafood AS,L06,Atlantic salmon (farmed),"Fillet trim D, skin-on",1-2 kg,147.3,NOK/kg,NOK,FCA Alesund,1.0,1.0,11.7,0.35,12.94,quoted,FX NOK; freight adder 0.35; conditional 2% rebate if >150 t
+S4,Oceanis Trading SARL,L06,Atlantic salmon (farmed),"Fillet trim D, skin-on",1-2 kg,12.77,EUR/kg,EUR,CIF Rotterdam,1.0,1.0,1.0,0.22,12.99,quoted,freight adder 0.22
+S5,Baltic Blue Foods Sp. z o.o.,L06,Atlantic salmon (farmed),"Fillet trim D, skin-on",1-2 kg,12.29,EUR/kg,EUR,EXW Gdynia + 0.18,1.0,1.0,1.0,0.0,12.29,same as last year (buyer contract file),'same as last year' - resolved from contract file (last year was DAP); AMBIGUOUS whether the new 0.18 freight applies - ask buyer/supplier
+S1,Fjordline Seafood AS,L07,Atlantic cod (wild),"H&G, frozen at sea",1-2.5 kg,67.04,NOK/kg,NOK,FCA Alesund,1.0,1.0,11.7,0.35,6.08,quoted,FX NOK; freight adder 0.35; conditional 2% rebate if >150 t
+S3,Atlantico Pesca S.L.,L07,Atlantic cod (wild),"H&G, frozen at sea",1-2.5 kg,6.23,EUR/kg,EUR,DAP Boulogne,1.0,1.0,1.0,0.0,6.23,quoted,
+S4,Oceanis Trading SARL,L07,Atlantic cod (wild),"H&G, frozen at sea",1-2.5 kg,5.53,EUR/kg,EUR,CIF Rotterdam,1.0,1.0,1.0,0.22,5.75,quoted,freight adder 0.22
+S1,Fjordline Seafood AS,L08,Atlantic cod (wild),"H&G, frozen at sea",2.5 kg+,67.63,NOK/kg,NOK,FCA Alesund,1.0,1.0,11.7,0.35,6.13,quoted,FX NOK; freight adder 0.35; conditional 2% rebate if >150 t
+S3,Atlantico Pesca S.L.,L08,Atlantic cod (wild),"H&G, frozen at sea",2.5 kg+,6.65,EUR/kg,EUR,DAP Boulogne,1.0,1.0,1.0,0.0,6.65,quoted,
+S4,Oceanis Trading SARL,L08,Atlantic cod (wild),"H&G, frozen at sea",2.5 kg+,6.34,EUR/kg,EUR,CIF Rotterdam,1.0,1.0,1.0,0.22,6.56,quoted,freight adder 0.22
+S1,Fjordline Seafood AS,L09,Atlantic cod (wild),"Fillet skinless boneless, IQF",200-400 g,106.82,NOK/kg,NOK,FCA Alesund,1.0,1.0,11.7,0.35,9.48,quoted,FX NOK; freight adder 0.35; conditional 2% rebate if >150 t
+S3,Atlantico Pesca S.L.,L09,Atlantic cod (wild),"Fillet skinless boneless, IQF",200-400 g,10.36,EUR/kg,EUR,DAP Boulogne,1.0,1.0,1.0,0.0,10.36,quoted,
+S4,Oceanis Trading SARL,L09,Atlantic cod (wild),"Fillet skinless boneless, IQF",200-400 g,9.14,EUR/kg,EUR,CIF Rotterdam,1.0,1.0,1.0,0.22,9.36,quoted,freight adder 0.22
+S5,Baltic Blue Foods Sp. z o.o.,L09,Atlantic cod (wild),"Fillet skinless boneless, IQF",200-400 g,9.66,EUR/kg,EUR,EXW Gdynia + 0.18,1.0,1.0,1.0,0.18,9.84,quoted,freight adder 0.18; EXW; supplier-stated freight approx 0.18
+S1,Fjordline Seafood AS,L10,Atlantic cod (wild),"Fillet skinless boneless, IQF",400-800 g,109.63,NOK/kg,NOK,FCA Alesund,1.0,1.0,11.7,0.35,9.72,quoted,FX NOK; freight adder 0.35; conditional 2% rebate if >150 t
+S3,Atlantico Pesca S.L.,L10,Atlantic cod (wild),"Fillet skinless boneless, IQF",400-800 g,10.44,EUR/kg,EUR,DAP Boulogne,1.0,1.0,1.0,0.0,10.44,quoted,
+S4,Oceanis Trading SARL,L10,Atlantic cod (wild),"Fillet skinless boneless, IQF",400-800 g,9.92,EUR/kg,EUR,CIF Rotterdam,1.0,1.0,1.0,0.22,10.14,quoted,freight adder 0.22
+S1,Fjordline Seafood AS,L11,Atlantic cod (wild),"Loins, IQF",150-250 g,137.71,NOK/kg,NOK,FCA Alesund,1.0,1.0,11.7,0.35,12.12,quoted,FX NOK; freight adder 0.35; conditional 2% rebate if >150 t
+S3,Atlantico Pesca S.L.,L11,Atlantic cod (wild),"Loins, IQF",150-250 g,13.0,EUR/kg,EUR,DAP Boulogne,1.0,1.0,1.0,0.0,13.0,quoted,
+S4,Oceanis Trading SARL,L11,Atlantic cod (wild),"Loins, IQF",150-250 g,12.89,EUR/kg,EUR,CIF Rotterdam,1.0,1.0,1.0,0.22,13.11,quoted,freight adder 0.22
+S5,Baltic Blue Foods Sp. z o.o.,L11,Atlantic cod (wild),"Loins, IQF",150-250 g,12.0,EUR/kg,EUR,EXW Gdynia + 0.18,1.0,1.0,1.0,0.0,12.0,same as last year (buyer contract file),'same as last year' - resolved from contract file (last year was DAP); AMBIGUOUS whether the new 0.18 freight applies - ask buyer/supplier
+S1,Fjordline Seafood AS,L12,Haddock (wild),"H&G, frozen at sea",1-2 kg,49.49,NOK/kg,NOK,FCA Alesund,1.0,1.0,11.7,0.35,4.58,quoted,FX NOK; freight adder 0.35; conditional 2% rebate if >150 t
+S3,Atlantico Pesca S.L.,L12,Haddock (wild),"H&G, frozen at sea",1-2 kg,4.9,EUR/kg,EUR,DAP Boulogne,1.0,1.0,1.0,0.0,4.9,quoted,
+S4,Oceanis Trading SARL,L12,Haddock (wild),"H&G, frozen at sea",1-2 kg,4.46,EUR/kg,EUR,CIF Rotterdam,1.0,1.0,1.0,0.22,4.68,quoted,freight adder 0.22
+S1,Fjordline Seafood AS,L13,Haddock (wild),"Fillet skin-on PBI, IQF",170-230 g,86.23,NOK/kg,NOK,FCA Alesund,1.0,1.0,11.7,0.35,7.72,quoted,FX NOK; freight adder 0.35; conditional 2% rebate if >150 t
+S3,Atlantico Pesca S.L.,L13,Haddock (wild),"Fillet skin-on PBI, IQF",170-230 g,8.47,EUR/kg,EUR,DAP Boulogne,1.0,1.0,1.0,0.0,8.47,quoted,
+S4,Oceanis Trading SARL,L13,Haddock (wild),"Fillet skin-on PBI, IQF",170-230 g,7.96,EUR/kg,EUR,CIF Rotterdam,1.0,1.0,1.0,0.22,8.18,quoted,freight adder 0.22
+S1,Fjordline Seafood AS,L14,Alaska pollock (wild),"Fillet block, PBO",7.5 kg block,275.53,NOK/block (7.5 kg),NOK,FCA Alesund,1.0,7.5,11.7,0.35,3.49,quoted,unit conversion: NOK/block (7.5 kg); FX NOK; freight adder 0.35; conditional 2% rebate if >150 t
+S2,Pacific Rim Seafoods Ltd,L14,Alaska pollock (wild),"Fillet block, PBO",7.5 kg block,3.78,USD/kg,USD,CFR Le Havre,1.0,1.0,1.17,0.12,3.351,quoted,FX USD; freight adder 0.12
+S4,Oceanis Trading SARL,L14,Alaska pollock (wild),"Fillet block, PBO",7.5 kg block,3.46,EUR/kg,EUR,CIF Rotterdam,1.0,1.0,1.0,0.22,3.68,quoted,freight adder 0.22
+S1,Fjordline Seafood AS,L15,Alaska pollock (wild),Minced block,7.5 kg block,181.64,NOK/block (7.5 kg),NOK,FCA Alesund,1.0,7.5,11.7,0.35,2.42,quoted,unit conversion: NOK/block (7.5 kg); FX NOK; freight adder 0.35; conditional 2% rebate if >150 t
+S2,Pacific Rim Seafoods Ltd,L15,Alaska pollock (wild),Minced block,7.5 kg block,2.56,USD/kg,USD,CFR Le Havre,1.0,1.0,1.17,0.12,2.308,quoted,FX USD; freight adder 0.12
+S4,Oceanis Trading SARL,L15,Alaska pollock (wild),Minced block,7.5 kg block,2.27,EUR/kg,EUR,CIF Rotterdam,1.0,1.0,1.0,0.22,2.49,quoted,freight adder 0.22
+S1,Fjordline Seafood AS,L16,Alaska pollock (wild),"Fillet skinless boneless, IQF",113-170 g,42.12,NOK/kg,NOK,FCA Alesund,1.0,1.0,11.7,0.35,3.95,quoted,FX NOK; freight adder 0.35; conditional 2% rebate if >150 t
+S2,Pacific Rim Seafoods Ltd,L16,Alaska pollock (wild),"Fillet skinless boneless, IQF",113-170 g,4.4,USD/kg,USD,CFR Le Havre,1.0,1.0,1.17,0.12,3.881,quoted,FX USD; freight adder 0.12
+S4,Oceanis Trading SARL,L16,Alaska pollock (wild),"Fillet skinless boneless, IQF",113-170 g,3.85,EUR/kg,EUR,CIF Rotterdam,1.0,1.0,1.0,0.22,4.07,quoted,freight adder 0.22
+S2,Pacific Rim Seafoods Ltd,L17,Vannamei shrimp (farmed),"HLSO, raw, block frozen",16/20 per lb,3.74,USD/lb,USD,CFR Le Havre,0.8,0.45359237,1.17,0.12,8.929,quoted,20% glaze - price on gross weight; unit conversion: USD/lb; FX USD; freight adder 0.12; conditional 3% discount (PO by 30/09)
+S3,Atlantico Pesca S.L.,L17,Vannamei shrimp (farmed),"HLSO, raw, block frozen",16/20 per lb,125.64,EUR/carton (6 x 2 kg),EUR,DAP Boulogne,1.0,12.0,1.0,0.0,10.47,quoted,unit conversion: EUR/carton (6 x 2 kg)
+S4,Oceanis Trading SARL,L17,Vannamei shrimp (farmed),"HLSO, raw, block frozen",16/20 per lb,93.9,EUR/MC (10 kg),EUR,CIF Rotterdam,1.0,10.0,1.0,0.22,9.61,quoted,unit conversion: EUR/MC (10 kg); freight adder 0.22
+S2,Pacific Rim Seafoods Ltd,L18,Vannamei shrimp (farmed),"HLSO, raw, block frozen",21/25 per lb,3.74,USD/lb,USD,CFR Le Havre,0.8,0.45359237,1.17,0.12,8.929,quoted,20% glaze - price on gross weight; unit conversion: USD/lb; FX USD; freight adder 0.12; conditional 3% discount (PO by 30/09)
+S3,Atlantico Pesca S.L.,L18,Vannamei shrimp (farmed),"HLSO, raw, block frozen",21/25 per lb,113.88,EUR/carton (6 x 2 kg),EUR,DAP Boulogne,1.0,12.0,1.0,0.0,9.49,quoted,unit conversion: EUR/carton (6 x 2 kg)
+S4,Oceanis Trading SARL,L18,Vannamei shrimp (farmed),"HLSO, raw, block frozen",21/25 per lb,85.4,EUR/MC (10 kg),EUR,CIF Rotterdam,1.0,10.0,1.0,0.22,8.76,quoted,unit conversion: EUR/MC (10 kg); freight adder 0.22
+S2,Pacific Rim Seafoods Ltd,L19,Vannamei shrimp (farmed),"HLSO, raw, block frozen",26/30 per lb,3.41,USD/lb,USD,CFR Le Havre,0.8,0.45359237,1.17,0.12,8.152,quoted,20% glaze - price on gross weight; unit conversion: USD/lb; FX USD; freight adder 0.12; conditional 3% discount (PO by 30/09)
+S3,Atlantico Pesca S.L.,L19,Vannamei shrimp (farmed),"HLSO, raw, block frozen",26/30 per lb,106.2,EUR/carton (6 x 2 kg),EUR,DAP Boulogne,1.0,12.0,1.0,0.0,8.85,quoted,unit conversion: EUR/carton (6 x 2 kg)
+S4,Oceanis Trading SARL,L19,Vannamei shrimp (farmed),"HLSO, raw, block frozen",26/30 per lb,80.8,EUR/MC (10 kg),EUR,CIF Rotterdam,1.0,10.0,1.0,0.22,8.3,quoted,unit conversion: EUR/MC (10 kg); freight adder 0.22
+S2,Pacific Rim Seafoods Ltd,L20,Vannamei shrimp (farmed),"PD tail-on, cooked, IQF",31/40 per lb,4.11,USD/lb,USD,CFR Le Havre,0.8,0.45359237,1.17,0.12,9.801,quoted,20% glaze - price on gross weight; unit conversion: USD/lb; FX USD; freight adder 0.12; conditional 3% discount (PO by 30/09)
+S3,Atlantico Pesca S.L.,L20,Vannamei shrimp (farmed),"PD tail-on, cooked, IQF",31/40 per lb,10.33,EUR/kg,EUR,DAP Boulogne,1.0,1.0,1.0,0.0,10.33,quoted,
+S4,Oceanis Trading SARL,L20,Vannamei shrimp (farmed),"PD tail-on, cooked, IQF",31/40 per lb,100.1,EUR/MC (10 kg),EUR,CIF Rotterdam,1.0,10.0,1.0,0.22,10.23,quoted,unit conversion: EUR/MC (10 kg); freight adder 0.22
+S2,Pacific Rim Seafoods Ltd,L21,Vannamei shrimp (farmed),"PD tail-on, cooked, IQF",41/50 per lb,3.72,USD/lb,USD,CFR Le Havre,0.8,0.45359237,1.17,0.12,8.882,quoted,20% glaze - price on gross weight; unit conversion: USD/lb; FX USD; freight adder 0.12; conditional 3% discount (PO by 30/09)
+S3,Atlantico Pesca S.L.,L21,Vannamei shrimp (farmed),"PD tail-on, cooked, IQF",41/50 per lb,9.7,EUR/kg,EUR,DAP Boulogne,1.0,1.0,1.0,0.0,9.7,quoted,
+S4,Oceanis Trading SARL,L21,Vannamei shrimp (farmed),"PD tail-on, cooked, IQF",41/50 per lb,91.8,EUR/MC (10 kg),EUR,CIF Rotterdam,1.0,10.0,1.0,0.22,9.4,quoted,unit conversion: EUR/MC (10 kg); freight adder 0.22
+S2,Pacific Rim Seafoods Ltd,L22,Vannamei shrimp (farmed),"PUD, raw, IQF",71/90 per lb,2.99,USD/lb,USD,CFR Le Havre,0.8,0.45359237,1.17,0.12,7.163,quoted,20% glaze - price on gross weight; unit conversion: USD/lb; FX USD; freight adder 0.12; conditional 3% discount (PO by 30/09)
+S3,Atlantico Pesca S.L.,L22,Vannamei shrimp (farmed),"PUD, raw, IQF",71/90 per lb,87.72,EUR/carton (6 x 2 kg),EUR,DAP Boulogne,1.0,12.0,1.0,0.0,7.31,quoted,unit conversion: EUR/carton (6 x 2 kg)
+S4,Oceanis Trading SARL,L22,Vannamei shrimp (farmed),"PUD, raw, IQF",71/90 per lb,73.0,EUR/MC (10 kg),EUR,CIF Rotterdam,1.0,10.0,1.0,0.22,7.52,quoted,unit conversion: EUR/MC (10 kg); freight adder 0.22
+S2,Pacific Rim Seafoods Ltd,L23,Black tiger shrimp (farmed),"HLSO, raw, block frozen",8/12 per lb,6.54,USD/lb,USD,CFR Le Havre,0.8,0.45359237,1.17,0.12,15.524,quoted,20% glaze - price on gross weight; unit conversion: USD/lb; FX USD; freight adder 0.12; conditional 3% discount (PO by 30/09)
+S4,Oceanis Trading SARL,L23,Black tiger shrimp (farmed),"HLSO, raw, block frozen",8/12 per lb,169.2,EUR/MC (10 kg),EUR,CIF Rotterdam,1.0,10.0,1.0,0.22,17.14,quoted,unit conversion: EUR/MC (10 kg); freight adder 0.22
+S2,Pacific Rim Seafoods Ltd,L24,Black tiger shrimp (farmed),"HLSO, raw, block frozen",13/15 per lb,5.49,USD/lb,USD,CFR Le Havre,0.8,0.45359237,1.17,0.12,13.051,quoted,20% glaze - price on gross weight; unit conversion: USD/lb; FX USD; freight adder 0.12; conditional 3% discount (PO by 30/09)
+S4,Oceanis Trading SARL,L24,Black tiger shrimp (farmed),"HLSO, raw, block frozen",13/15 per lb,138.1,EUR/MC (10 kg),EUR,CIF Rotterdam,1.0,10.0,1.0,0.22,14.03,quoted,unit conversion: EUR/MC (10 kg); freight adder 0.22
+S2,Pacific Rim Seafoods Ltd,L25,Yellowfin tuna (wild),"Loins, ultra-low temp (-60C)",2-4 kg,12.57,USD/kg,USD,CFR Le Havre,1.0,1.0,1.17,0.12,10.864,quoted,FX USD; freight adder 0.12
+S3,Atlantico Pesca S.L.,L25,Yellowfin tuna (wild),"Loins, ultra-low temp (-60C)",2-4 kg,11.76,EUR/kg,EUR,DAP Boulogne,1.0,1.0,1.0,0.0,11.76,quoted,
+S2,Pacific Rim Seafoods Ltd,L26,Yellowfin tuna (wild),"Saku blocks, IVP",200-300 g,19.33,USD/kg,USD,CFR Le Havre,1.0,1.0,1.17,0.12,16.641,quoted,FX USD; freight adder 0.12
+S3,Atlantico Pesca S.L.,L26,Yellowfin tuna (wild),"Saku blocks, IVP",200-300 g,17.08,EUR/kg,EUR,DAP Boulogne,1.0,1.0,1.0,0.0,17.08,quoted,
+S3,Atlantico Pesca S.L.,L27,Argentine hake (wild),"H&G, frozen",200-400 g,3.29,EUR/kg,EUR,DAP Boulogne,1.0,1.0,1.0,0.0,3.29,quoted,
+S4,Oceanis Trading SARL,L27,Argentine hake (wild),"H&G, frozen",200-400 g,3.14,EUR/kg,EUR,CIF Rotterdam,1.0,1.0,1.0,0.22,3.36,quoted,freight adder 0.22
+S3,Atlantico Pesca S.L.,L28,Argentine hake (wild),"Fillet skin-on, IQF",60-120 g,4.97,EUR/kg,EUR,DAP Boulogne,1.0,1.0,1.0,0.0,4.97,quoted,
+S4,Oceanis Trading SARL,L28,Argentine hake (wild),"Fillet skin-on, IQF",60-120 g,4.66,EUR/kg,EUR,CIF Rotterdam,1.0,1.0,1.0,0.22,4.88,quoted,"freight adder 0.22; ILLEGIBLE on photo - must be flagged, not guessed"
+S2,Pacific Rim Seafoods Ltd,L29,Loligo squid (wild),"Tubes, cleaned, IQF",U/5 per lb,3.14,USD/lb,USD,CFR Le Havre,0.8,0.45359237,1.17,0.12,7.516,quoted,20% glaze - price on gross weight; unit conversion: USD/lb; FX USD; freight adder 0.12
+S3,Atlantico Pesca S.L.,L29,Loligo squid (wild),"Tubes, cleaned, IQF",U/5 per lb,8.17,EUR/kg,EUR,DAP Boulogne,1.0,1.0,1.0,0.0,8.17,quoted,
+S4,Oceanis Trading SARL,L29,Loligo squid (wild),"Tubes, cleaned, IQF",U/5 per lb,7.91,EUR/kg,EUR,CIF Rotterdam,1.0,1.0,1.0,0.22,8.13,quoted,freight adder 0.22
+S2,Pacific Rim Seafoods Ltd,L30,Loligo squid (wild),"Rings, IQF",2-5 cm,2.28,USD/lb,USD,CFR Le Havre,0.8,0.45359237,1.17,0.12,5.49,quoted,20% glaze - price on gross weight; unit conversion: USD/lb; FX USD; freight adder 0.12
+S3,Atlantico Pesca S.L.,L30,Loligo squid (wild),"Rings, IQF",2-5 cm,5.73,EUR/kg,EUR,DAP Boulogne,1.0,1.0,1.0,0.0,5.73,quoted,

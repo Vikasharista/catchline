@@ -1,0 +1,27 @@
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E8573B" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12c4.5-5.5 10.5-7.5 17-7-1.8 4.6-1.8 9.4 0 14-6.5.5-12.5-1.5-17-7z"/><path d="M19 5.5c1.6 1.3 2.6 3.1 3 6.5-.4 3.4-1.4 5.2-3 6.5"/><circle cx="7.5" cy="12" r="1.1" fill="#E8573B" stroke="none"/></svg>
+    <span>Catchline</span>
+  </div>
+  <div class="sidebar-label">SOURCING EVENT</div>
+  <nav class="sidebar-nav">
+    {% for step in nav_steps %}
+    <a class="nav-row {{ 'active' if step.key == active_step else '' }} {{ 'done' if step.done else '' }} {{ 'locked' if step.locked else '' }}"
+       href="{{ step.href }}">
+      <span class="nav-num">{{ loop.index }}</span>
+      <span class="label">{{ step.label }}</span>
+    </a>
+    {% endfor %}
+  </nav>
+  <div style="flex:1"></div>
+  {% if rfx %}
+  <div class="sidebar-rfx">
+    <div class="sidebar-rfx-label">CURRENT RFX</div>
+    <div class="sidebar-rfx-id">{{ rfx.rfx_number or ('RFX-' ~ rfx.id) }}</div>
+    <div class="sidebar-rfx-stats">
+      <div class="row"><span>Lines</span><span>{{ rfx.line_count }}</span></div>
+      <div class="row"><span>Suppliers</span><span>{{ rfx.supplier_count }}</span></div>
+    </div>
+  </div>
+  {% endif %}
+</aside>

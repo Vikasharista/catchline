@@ -1,0 +1,6 @@
+incoterm_origin,eur_per_kg,note
+DAP Boulogne,0.0,delivered
+FCA Alesund,0.35,reefer truck Norway to Boulogne incl. ferry
+CFR Le Havre,0.12,"insurance, port handling, customs clearance, truck to plant"
+CIF Rotterdam,0.22,"port handling, customs clearance, truck to plant"
+EXW / supplier-stated,,"use the supplier's stated freight if given, else flag"
