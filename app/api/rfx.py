@@ -28,6 +28,28 @@ def create_rfx(session: Session = Depends(get_session)):
     return {"id": rfx.id}
 
 
+@router.get("/rfx")
+def list_rfx(session: Session = Depends(get_session)):
+    """All RFQs, newest first — backs the RFx switcher so a buyer can start a
+    new RFQ without losing the current one's chat and draft (still there,
+    tied to its own rfx_id, never touched by starting a new one).
+    """
+    rows = session.exec(select(Rfx).order_by(Rfx.id.desc())).all()
+    result = []
+    for rfx in rows:
+        draft = get_current_draft(session, rfx.id)
+        result.append(
+            {
+                "id": rfx.id,
+                "status": rfx.status,
+                "title": (draft.get("scope") or {}).get("title") or f"RFX-{rfx.id}",
+                "line_count": len(draft.get("lines", [])),
+                "created_at": rfx.created_at,
+            }
+        )
+    return result
+
+
 @router.post("/rfx/{rfx_id}/seed-reference")
 def seed_reference(rfx_id: int, session: Session = Depends(get_session)):
     rfx = session.get(Rfx, rfx_id)
