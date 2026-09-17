@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: catchline
+    runtime: docker
+    plan: starter
+    healthCheckPath: /api/health
+    envVars:
+      - key: LLM_MODEL
+        value: anthropic/claude-sonnet-4-5
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        value: sqlite:////app/data/db.sqlite3
