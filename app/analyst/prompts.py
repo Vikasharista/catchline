@@ -113,6 +113,14 @@ TOOL_SCHEMAS = [
     {
         "type": "function",
         "function": {
+            "name": "qualified_vendors",
+            "description": "Per SKU/line: which suppliers qualify (eligible, not blocked), their price, and their delivery SLA (MOQ + lead time). Optionally filtered to one line_id.",
+            "parameters": {"type": "object", "properties": {"line_id": {"type": "string"}}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "run_sandbox",
             "description": "Runs a read-only pandas expression against the `quotes` DataFrame for anything the fixed tools don't cover. No imports, no dunder access, 5s timeout, 500-row cap.",
             "parameters": {"type": "object", "properties": {"code": {"type": "string"}}, "required": ["code"]},

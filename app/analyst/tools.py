@@ -23,11 +23,13 @@ class AnalystTools:
         all_line_ids: list[str],
         all_supplier_ids: list[str],
         session: Session | None = None,
+        rfx_id: int | None = None,
     ):
         self.quotes = quotes
         self.all_line_ids = all_line_ids
         self.all_supplier_ids = all_supplier_ids
         self.session = session
+        self.rfx_id = rfx_id
 
     def coverage(self) -> dict:
         counts = self.quotes.groupby("supplier_id")["line_id"].nunique().to_dict()
@@ -232,3 +234,14 @@ class AnalystTools:
             for cert, supplier in rows
         ]
         return {"certificates": certs, "count": len(certs)}
+
+    def qualified_vendors(self, line_id: str | None = None) -> dict:
+        """Per SKU/line: qualified suppliers (eligible, price, delivery SLA)."""
+        from app.validate.service import qualified_vendors_table
+
+        if self.session is None or self.rfx_id is None:
+            return {"rows": [], "note": "no DB session available"}
+        rows = qualified_vendors_table(self.session, self.rfx_id)
+        if line_id:
+            rows = [r for r in rows if r["line_id"] == line_id]
+        return {"rows": rows, "count": len(rows)}

@@ -1,7 +1,16 @@
 """Pydantic models for the extraction agent's structured output (PRD §7.4)."""
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
+
+# Canonical unit codes app/normalize/convert.py understands. Declared as a
+# Literal (not a free-text string) so the JSON-schema structured output
+# forces the model to pick one of these — a free-text field let the model
+# return display units like "NOK/kg" instead of "per_kg", which silently
+# produced unit_unknown on every item (caught via live testing).
+PriceUnit = Literal["per_kg", "per_lb", "per_block", "per_carton", "per_master_carton"]
 
 
 class Condition(BaseModel):
@@ -22,7 +31,7 @@ class ExtractedItem(BaseModel):
     product_desc: str
     price: float | None = None
     currency: str | None = None
-    price_unit: str | None = None  # per_kg | per_lb | per_block | per_carton | per_master_carton
+    price_unit: PriceUnit | None = None
     pack_size_kg: float | None = None
     weight_basis: str = "unknown"  # net | gross | unknown
     glaze_pct: float | None = None

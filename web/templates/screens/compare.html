@@ -1,12 +1,56 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="card">
+<div class="card" style="margin-bottom:16px">
   <h2 style="font-size:15px;margin-bottom:12px">Comparison grid — EUR/kg net DAP Boulogne</h2>
   <div id="grid" style="overflow:auto"></div>
 </div>
 
+<div class="card">
+  <h2 style="font-size:15px;margin-bottom:4px">Qualified vendors</h2>
+  <p style="font-size:11.5px;color:var(--cl-text-muted);margin-bottom:12px">Per SKU/line: suppliers who are eligible, not blocked on that line, with a price and a delivery SLA (MOQ + lead time from the questionnaire).</p>
+  <div id="qualified-vendors" style="overflow:auto"></div>
+</div>
+
 <script>
 const RFX_ID = {{ rfx_id }};
+
+async function loadQualifiedVendors() {
+  const el = document.getElementById('qualified-vendors');
+  let data;
+  try {
+    const res = await fetch(`/api/rfx/${RFX_ID}/qualified-vendors`);
+    if (!res.ok) throw new Error(res.statusText || `HTTP ${res.status}`);
+    data = await res.json();
+  } catch (err) {
+    el.innerHTML = `<div style="font-size:12px;color:var(--cl-red)">Something went wrong: ${err.message}</div>`;
+    return;
+  }
+  if (!data.rows.length) {
+    el.innerHTML = '<div style="font-size:13px;color:var(--cl-text-faint)">No quotes extracted yet.</div>';
+    return;
+  }
+  const rows = [...data.rows].sort((a, b) => (a.line_id + a.supplier_name).localeCompare(b.line_id + b.supplier_name));
+  el.innerHTML = `<table style="border-collapse:collapse;font-size:12px;width:100%">
+    <tr style="text-align:left;color:var(--cl-text-faint)">
+      <th style="padding:6px;border-bottom:1px solid var(--cl-border)">Line</th>
+      <th style="padding:6px;border-bottom:1px solid var(--cl-border)">Species</th>
+      <th style="padding:6px;border-bottom:1px solid var(--cl-border)">Supplier</th>
+      <th style="padding:6px;border-bottom:1px solid var(--cl-border);text-align:right">Price €/kg</th>
+      <th style="padding:6px;border-bottom:1px solid var(--cl-border)">Eligibility</th>
+      <th style="padding:6px;border-bottom:1px solid var(--cl-border)">Delivery SLA</th>
+      <th style="padding:6px;border-bottom:1px solid var(--cl-border)">Qualified</th>
+    </tr>
+    ${rows.map(r => `<tr style="${!r.qualified ? 'opacity:0.5' : ''}">
+      <td style="padding:6px;border-bottom:1px solid var(--cl-border)">${r.line_id}</td>
+      <td style="padding:6px;border-bottom:1px solid var(--cl-border)">${r.species || ''}</td>
+      <td style="padding:6px;border-bottom:1px solid var(--cl-border)">${r.supplier_name}</td>
+      <td style="padding:6px;border-bottom:1px solid var(--cl-border);text-align:right">${r.price_eur_kg_net_dap != null ? r.price_eur_kg_net_dap.toFixed(2) : '—'}</td>
+      <td style="padding:6px;border-bottom:1px solid var(--cl-border)"><span class="badge ${r.eligibility === 'eligible' ? 'badge-success' : r.eligibility === 'conditional' ? 'badge-amber' : 'badge-red'}">${r.eligibility}${r.line_blocked ? ' (blocked)' : ''}</span></td>
+      <td style="padding:6px;border-bottom:1px solid var(--cl-border);font-size:11px">${r.delivery_sla || '—'}</td>
+      <td style="padding:6px;border-bottom:1px solid var(--cl-border)">${r.qualified ? '✓' : '—'}</td>
+    </tr>`).join('')}
+  </table>`;
+}
 
 async function load() {
   const grid = document.getElementById('grid');
@@ -61,5 +105,6 @@ async function load() {
 }
 
 load();
+loadQualifiedVendors();
 </script>
 {% endblock %}

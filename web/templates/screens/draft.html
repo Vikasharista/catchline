@@ -9,26 +9,46 @@
              style="flex:1;height:36px;padding:0 10px;border:1px solid var(--cl-border);border-radius:8px;font-family:inherit;font-size:13px">
       <button class="btn btn-primary" id="chat-send">Send</button>
     </div>
-    <div style="margin-top:10px;display:flex;gap:8px">
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn btn-secondary" id="load-reference">Load reference RFx</button>
       <button class="btn btn-secondary" id="seed-history">Seed sourcing history</button>
     </div>
+
+    <div id="shortlist-panel" style="margin-top:14px"></div>
   </div>
 
   <div class="card" style="flex:3;display:flex;flex-direction:column;min-height:0">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
       <h2 style="font-size:15px">Draft — {{ heading }}</h2>
-      <span class="badge badge-neutral">{{ pending_count }} pending</span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="badge badge-neutral">{{ pending_count }} pending</span>
+        <button class="btn btn-primary" id="review-send-btn">Review &amp; Send</button>
+      </div>
     </div>
     <div id="sections" style="display:flex;flex-direction:column;gap:10px;overflow:auto"></div>
     <div id="pending-proposals" style="margin-top:14px;display:flex;flex-direction:column;gap:8px"></div>
   </div>
 </div>
 
-<div id="error-banner" style="display:none;background:var(--cl-red-bg);color:var(--cl-red);border-radius:8px;padding:10px 12px;font-size:12px;margin-bottom:10px"></div>
+<div id="error-banner" style="display:none;background:var(--cl-red-bg);color:var(--cl-red);border-radius:8px;padding:10px 12px;font-size:12px;margin-top:10px"></div>
+
+<div id="send-modal-backdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center">
+  <div class="card" style="width:560px;max-height:80vh;overflow:auto;padding:20px">
+    <h2 style="font-size:16px;margin-bottom:12px">Pre-send review</h2>
+    <div id="send-modal-body" style="font-size:13px"></div>
+    <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">
+      <button class="btn btn-secondary" id="send-modal-cancel">Cancel</button>
+      <a class="btn btn-secondary" id="send-modal-rfq-pdf" target="_blank">Preview RFQ PDF</a>
+      <a class="btn btn-secondary" id="send-modal-template" target="_blank">Preview template xlsx</a>
+      <button class="btn btn-primary" id="send-modal-confirm">Confirm &amp; Send</button>
+    </div>
+  </div>
+</div>
 
 <script>
 const RFX_ID = {{ rfx_id }};
+let currentDraft = null;
+let expandedSection = null;
 
 async function safeFetch(url, opts) {
   const res = await fetch(url, opts);
@@ -54,8 +74,57 @@ function clearError() {
   document.getElementById('error-banner').style.display = 'none';
 }
 
+function renderSectionDetail(key, draft) {
+  if (key === 'scope') {
+    const s = draft.scope;
+    const rows = [
+      ['Title', s.title], ['Category', s.category], ['Buyer site', s.buyer_site],
+      ['Contract', `${s.contract_start || '—'} to ${s.contract_end || '—'}`],
+      ['Incoterm', `${s.incoterm || '—'} ${s.incoterm_place || ''}`],
+      ['Currency', s.currency], ['Weight basis', s.weight_basis],
+      ['Response deadline', s.response_deadline], ['Award date', s.award_date],
+    ];
+    return `<table style="width:100%;font-size:12px;border-collapse:collapse">${
+      rows.map(([k, v]) => `<tr><td style="padding:4px 8px 4px 0;color:var(--cl-text-muted)">${k}</td><td style="padding:4px 0">${v || '—'}</td></tr>`).join('')
+    }</table>`;
+  }
+  if (key === 'lines') {
+    const lines = draft.lines || [];
+    if (!lines.length) return '<div style="font-size:12px;color:var(--cl-text-faint)">No lines yet.</div>';
+    return `<table style="width:100%;font-size:11.5px;border-collapse:collapse">
+      <tr style="text-align:left;color:var(--cl-text-faint)"><th style="padding:4px">Line</th><th>Species</th><th>Form</th><th>Grade</th><th style="text-align:right">Vol (kg)</th></tr>
+      ${lines.map(l => `<tr style="border-top:1px solid var(--cl-border)">
+        <td style="padding:4px">${l.line_id}</td><td>${l.species}</td><td>${l.form}</td><td>${l.grade}</td>
+        <td style="text-align:right">${(l.annual_volume_kg || 0).toLocaleString()}</td>
+      </tr>`).join('')}
+    </table>`;
+  }
+  if (key === 'questionnaire') {
+    const qs = draft.questionnaire || [];
+    if (!qs.length) return '<div style="font-size:12px;color:var(--cl-text-faint)">No questions yet.</div>';
+    return `<div style="display:flex;flex-direction:column;gap:6px">${
+      qs.map(q => `<div style="font-size:12px"><strong>${q.q_id}</strong> <span class="badge badge-neutral" style="margin-left:4px">${q.group}</span><br>${q.text}</div>`).join('')
+    }</div>`;
+  }
+  if (key === 'terms') {
+    const t = draft.terms;
+    const w = t.eval_weights || {};
+    const rows = [
+      ['Payment terms', t.payment_terms], ['Glaze cap', t.glaze_cap_pct != null ? `${(t.glaze_cap_pct * 100).toFixed(0)}%` : null],
+      ['Quote validity', t.quote_validity_days ? `${t.quote_validity_days} days` : null],
+      ['Eval weights', `price ${w.price ?? 0}% · quality ${w.quality ?? 0}% · commercial ${w.commercial ?? 0}%`],
+      ['Award rules', (t.award_rules || []).map(r => r.type).join(', ') || '—'],
+    ];
+    return `<table style="width:100%;font-size:12px;border-collapse:collapse">${
+      rows.map(([k, v]) => `<tr><td style="padding:4px 8px 4px 0;color:var(--cl-text-muted)">${k}</td><td style="padding:4px 0">${v || '—'}</td></tr>`).join('')
+    }</table>`;
+  }
+  return '';
+}
+
 async function refreshDraft() {
   const data = await safeFetch(`/api/rfx/${RFX_ID}`);
+  currentDraft = data.draft;
   const sectionsEl = document.getElementById('sections');
   const sectionKeys = ['scope', 'lines', 'questionnaire', 'terms'];
   sectionsEl.innerHTML = sectionKeys.map(key => {
@@ -66,15 +135,18 @@ async function refreshDraft() {
     if (key === 'scope') summary = data.draft.scope.title || 'not set';
     if (key === 'questionnaire') summary = `${(data.draft.questionnaire || []).length} question(s)`;
     if (key === 'terms') summary = data.draft.terms.payment_terms || 'not set';
-    return `<div style="border:1px solid var(--cl-border);border-radius:8px;padding:10px 12px">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <strong style="font-size:13px;text-transform:capitalize">${key}</strong>
-        <span class="badge ${badgeClass}">${status}</span>
+    const isOpen = expandedSection === key;
+    return `<div style="border:1px solid var(--cl-border);border-radius:8px;overflow:hidden">
+      <div style="padding:10px 12px;cursor:pointer" onclick="toggleSection('${key}')">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <strong style="font-size:13px;text-transform:capitalize">${key} <span style="color:var(--cl-text-faint);font-weight:400">${isOpen ? '▾' : '▸'}</span></strong>
+          <span class="badge ${badgeClass}">${status}</span>
+        </div>
+        <div style="font-size:12px;color:var(--cl-text-muted);margin-top:4px">${summary}</div>
       </div>
-      <div style="font-size:12px;color:var(--cl-text-muted);margin-top:4px">${summary}</div>
-      <div style="margin-top:8px">
-        <button class="btn btn-secondary" style="height:26px;font-size:11px" onclick="signOff('${key}')">Sign off</button>
-      </div>
+      ${isOpen ? `<div style="padding:0 12px 12px;border-top:1px solid var(--cl-border);padding-top:10px">${renderSectionDetail(key, data.draft)}
+        <div style="margin-top:10px"><button class="btn btn-secondary" style="height:26px;font-size:11px" onclick="event.stopPropagation();signOff('${key}')">Sign off</button></div>
+      </div>` : ''}
     </div>`;
   }).join('');
 
@@ -92,6 +164,34 @@ async function refreshDraft() {
         <button class="btn btn-secondary" style="height:26px;font-size:11px" onclick="decide(${p.id}, 'reject')">Reject</button>
       </div>
     </div>`).join('') || '<div style="font-size:12px;color:var(--cl-text-faint)">No pending proposals.</div>';
+
+  refreshShortlist();
+}
+
+function toggleSection(key) {
+  expandedSection = expandedSection === key ? null : key;
+  refreshDraft().catch(showError);
+}
+
+async function refreshShortlist() {
+  const panel = document.getElementById('shortlist-panel');
+  try {
+    const data = await safeFetch(`/api/rfx/${RFX_ID}/vendor-shortlist`);
+    const lineIds = Object.keys(data.by_line);
+    if (!lineIds.length) { panel.innerHTML = ''; return; }
+    const rows = lineIds.slice(0, 6).map(lineId => {
+      const top = data.by_line[lineId][0];
+      return `<div style="font-size:11.5px;padding:4px 0;border-top:1px solid var(--cl-border)">
+        <strong>${lineId}</strong>: ${top.supplier_name} (avg €${top.avg_price_eur_kg_net_dap}/kg, ${top.past_orders} past order(s))
+      </div>`;
+    }).join('');
+    panel.innerHTML = `<div class="card" style="padding:10px 12px">
+      <div style="font-size:12px;font-weight:600;margin-bottom:4px">Suggested vendors (from purchase history)</div>
+      ${rows}
+    </div>`;
+  } catch (err) {
+    panel.innerHTML = '';
+  }
 }
 
 async function decide(id, action) {
@@ -141,6 +241,51 @@ document.getElementById('seed-history').addEventListener('click', async () => {
     clearError();
     await safeFetch(`/api/admin/seed-history`, { method: 'POST' });
     alert('Sourcing history seeded — try asking the analyst about past orders or past RFQs.');
+    refreshShortlist();
+  } catch (err) { showError(err); }
+});
+
+// --- Pre-send review flow ---
+
+document.getElementById('review-send-btn').addEventListener('click', async () => {
+  try {
+    clearError();
+    const summary = await safeFetch(`/api/rfx/${RFX_ID}/send-summary`);
+    const body = document.getElementById('send-modal-body');
+    const sectionRows = summary.sections.map(s => `
+      <div style="display:flex;justify-content:space-between;padding:4px 0">
+        <span style="text-transform:capitalize">${s.key}</span>
+        <span class="badge ${s.status === 'signed_off' ? 'badge-success' : 'badge-amber'}">${s.status}${s.signed_by ? ' · ' + s.signed_by : ''}</span>
+      </div>`).join('');
+    const supplierRows = summary.suppliers.map(s => `<div style="font-size:12px">${s.name} — ${s.email || 'no email on file'}</div>`).join('');
+    body.innerHTML = `
+      <div style="margin-bottom:12px">${sectionRows}</div>
+      <div style="font-size:12px;color:var(--cl-text-muted);margin-bottom:8px">${summary.line_count} line(s) · ${summary.pending_proposal_count} pending proposal(s)</div>
+      <div style="font-weight:600;font-size:12px;margin-bottom:6px">Will be emailed to:</div>
+      ${supplierRows}
+      ${!summary.ready_to_send ? `<div style="margin-top:12px;padding:8px;background:var(--cl-red-bg);color:var(--cl-red);border-radius:6px;font-size:12px">
+        Not ready to send${summary.blocking_reasons.not_signed_off.length ? ': ' + summary.blocking_reasons.not_signed_off.join(', ') + ' not signed off' : ''}${summary.blocking_reasons.pending_proposal_count ? `, ${summary.blocking_reasons.pending_proposal_count} pending proposal(s)` : ''}
+      </div>` : ''}
+    `;
+    document.getElementById('send-modal-rfq-pdf').href = `/api/rfx/${RFX_ID}/preview/rfq.pdf`;
+    document.getElementById('send-modal-template').href = `/api/rfx/${RFX_ID}/preview/template.xlsx`;
+    document.getElementById('send-modal-confirm').disabled = !summary.ready_to_send;
+    document.getElementById('send-modal-confirm').style.opacity = summary.ready_to_send ? '1' : '0.5';
+    document.getElementById('send-modal-backdrop').style.display = 'flex';
+  } catch (err) { showError(err); }
+});
+
+document.getElementById('send-modal-cancel').addEventListener('click', () => {
+  document.getElementById('send-modal-backdrop').style.display = 'none';
+});
+
+document.getElementById('send-modal-confirm').addEventListener('click', async () => {
+  try {
+    clearError();
+    await safeFetch(`/api/rfx/${RFX_ID}/send`, { method: 'POST' });
+    document.getElementById('send-modal-backdrop').style.display = 'none';
+    alert('RFx sent to suppliers.');
+    window.location.href = `/rfx/${RFX_ID}/inbox`;
   } catch (err) { showError(err); }
 });
 

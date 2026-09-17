@@ -13,7 +13,7 @@ from app.copilot.reference_draft import reference_draft_dict
 from app.copilot.tools import get_current_draft, get_pending_proposals, get_section_states
 from app.exports.rfq_pdf import build_rfq_pdf
 from app.exports.template_xlsx import build_template_xlsx
-from app.models import AuditLog, CopilotQuestion, Rfx, RfxVersion, Supplier
+from app.models import AuditLog, CopilotQuestion, Rfx, RfxVersion, SectionState, Supplier
 from app.schemas.draft import RfxDraft
 
 router = APIRouter(prefix="/api")
@@ -194,6 +194,43 @@ def preview_template_xlsx(rfx_id: int, session: Session = Depends(get_session)):
         content=xlsx_bytes,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
+
+
+@router.get("/rfx/{rfx_id}/send-summary")
+def send_summary(rfx_id: int, session: Session = Depends(get_session)):
+    """Pre-send review (PRD §7.2 step 8): sign-off summary, who/when, the
+    supplier list an email will actually go to, and whether Send is unlocked
+    yet — so the UI can show a confirm step instead of sending blind.
+    """
+    draft_dict = get_current_draft(session, rfx_id)
+    draft = RfxDraft.model_validate(draft_dict)
+    required = ["scope", "lines", "questionnaire", "terms"]
+
+    states = session.exec(select(SectionState).where(SectionState.rfx_id == rfx_id)).all()
+    state_by_key = {s.section_key: s for s in states}
+    sections = [
+        {
+            "key": key,
+            "status": state_by_key[key].status if key in state_by_key else "drafting",
+            "signed_by": state_by_key[key].signed_by if key in state_by_key else None,
+            "signed_at": state_by_key[key].signed_at if key in state_by_key else None,
+        }
+        for key in required
+    ]
+
+    pending = get_pending_proposals(session, rfx_id)
+    not_signed = [s["key"] for s in sections if s["status"] != "signed_off"]
+    suppliers = session.exec(select(Supplier).where(Supplier.rfx_id == rfx_id)).all()
+
+    return {
+        "rfx_title": draft.scope.title,
+        "sections": sections,
+        "pending_proposal_count": len(pending),
+        "suppliers": [{"name": s.name, "email": s.email} for s in suppliers],
+        "line_count": len(draft.lines),
+        "ready_to_send": not not_signed and not pending,
+        "blocking_reasons": {"not_signed_off": not_signed, "pending_proposal_count": len(pending)},
+    }
 
 
 @router.post("/rfx/{rfx_id}/send")

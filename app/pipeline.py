@@ -5,6 +5,7 @@ ExtractedItem / NormalizedQuote / Flag rows in the DB.
 from __future__ import annotations
 
 import hashlib
+from datetime import datetime
 from pathlib import Path
 
 from sqlmodel import Session, select
@@ -12,8 +13,9 @@ from sqlmodel import Session, select
 from app.copilot.tools import get_current_draft
 from app.events import emit
 from app.extract.agent import extract_pass_a, extract_pass_b
+from app.extract.certificate import extract_certificate
 from app.ingest.router import route
-from app.models import Document, ExtractedItem, Flag, NormalizedQuote, Supplier
+from app.models import Certificate, Document, ExtractedItem, Flag, NormalizedQuote, QaAnswer, Supplier
 from app.normalize.convert import NormalizeInput, convert
 from app.schemas.draft import RfxDraft
 
@@ -126,6 +128,17 @@ def process_document(session: Session, document: Document, *, live: bool = False
             )
             n_flags += 1
 
+    for qa in extraction.questionnaire_answers:
+        existing = session.exec(
+            select(QaAnswer).where(QaAnswer.supplier_id == document.supplier_id, QaAnswer.q_id == qa.q_id)
+        ).first()
+        if existing is None:
+            existing = QaAnswer(supplier_id=document.supplier_id, q_id=qa.q_id)
+        existing.answer = qa.answer
+        existing.raw_text = qa.raw_text
+        existing.locator_json = {"locator": qa.locator}
+        session.add(existing)
+
     document.status = "extracted"
     session.add(document)
     session.commit()
@@ -135,3 +148,40 @@ def process_document(session: Session, document: Document, *, live: bool = False
     emit("extract_step", {"document_id": document.id, "step": "checked"})
 
     return {"status": "extracted", "items": len(extraction.items), "flags": n_flags}
+
+
+def process_certificate_document(session: Session, document: Document, *, live: bool = False) -> dict:
+    path = Path(document.path)
+    sha256 = hashlib.sha256(path.read_bytes()).hexdigest()
+    doc = route(path)
+    emit("extract_step", {"document_id": document.id, "step": "opened"})
+
+    extraction = extract_certificate(doc, sha256=sha256, live=live)
+    if extraction is None or not extraction.legible:
+        document.status = "needs_attention"
+        session.add(document)
+        session.commit()
+        emit("error", {"document_id": document.id, "message": "certificate extraction failed"})
+        return {"status": "needs_attention"}
+
+    valid_until = None
+    if extraction.valid_until:
+        try:
+            valid_until = datetime.fromisoformat(extraction.valid_until)
+        except ValueError:
+            valid_until = None
+
+    cert = Certificate(
+        supplier_id=document.supplier_id,
+        scheme=extraction.scheme or "unknown",
+        grade=extraction.grade,
+        valid_until=valid_until,
+        document_id=document.id,
+    )
+    session.add(cert)
+    document.status = "extracted"
+    session.add(document)
+    session.commit()
+    emit("extract_step", {"document_id": document.id, "step": "checked"})
+
+    return {"status": "extracted", "scheme": cert.scheme, "valid_until": extraction.valid_until}

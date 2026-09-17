@@ -4,6 +4,7 @@ PASS_A_SYSTEM = """You extract prices and terms from a frozen-seafood supplier's
 
 Rules, no exceptions:
 - Read every number exactly as written in the source. Never convert currency, units, or weight basis — that happens later in code.
+- price_unit describes the UNIT the price is quoted per, independent of currency: "per_kg" for any per-kilogram price (NOK/kg, EUR/kg, USD/kg — the currency goes in the separate currency field, not here), "per_lb" for per-pound, "per_block"/"per_carton"/"per_master_carton" when the price is per pack (give pack_size_kg too, e.g. "7.5 kg block" -> price_unit "per_block", pack_size_kg 7.5). Never put a currency code inside price_unit.
 - If a value cannot be read (stained, cropped, illegible), set price to null and legibility to "illegible". Never guess a plausible number.
 - For every item, quote the exact source text in raw_text and give a locator (cell, page, paragraph/table index, or image region).
 - If the document states a default that applies to several items (e.g. "all prices CFR Le Havre in USD", "20% glaze on gross weight"), apply it to every item it covers and say so in that item's raw_text or product_desc.

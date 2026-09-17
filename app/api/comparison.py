@@ -6,8 +6,20 @@ from sqlmodel import Session, select
 
 from app.api.deps import get_session
 from app.models import Assumption, Eligibility, ExtractedItem, NormalizedQuote, Supplier
+from app.validate.service import qualified_vendors_table, suggest_vendors_from_history
 
 router = APIRouter(prefix="/api")
+
+
+@router.get("/rfx/{rfx_id}/qualified-vendors")
+def qualified_vendors(rfx_id: int, session: Session = Depends(get_session)):
+    return {"rows": qualified_vendors_table(session, rfx_id)}
+
+
+@router.get("/rfx/{rfx_id}/vendor-shortlist")
+def vendor_shortlist(rfx_id: int, session: Session = Depends(get_session)):
+    """Pre-send shortlist from purchase history — see suggest_vendors_from_history."""
+    return {"by_line": suggest_vendors_from_history(session, rfx_id)}
 
 
 @router.get("/rfx/{rfx_id}/comparison")

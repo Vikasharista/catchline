@@ -59,7 +59,7 @@ def ask(session: Session, rfx_id: int, question: str, all_line_ids: list[str]) -
 
     quotes = build_quotes_dataframe(session, rfx_id)
     supplier_ids = [s.id for s in session.exec(select(Supplier).where(Supplier.rfx_id == rfx_id)).all()]
-    tools = AnalystTools(quotes, all_line_ids=all_line_ids, all_supplier_ids=supplier_ids, session=session)
+    tools = AnalystTools(quotes, all_line_ids=all_line_ids, all_supplier_ids=supplier_ids, session=session, rfx_id=rfx_id)
 
     def _run_sandbox(code: str):
         try:
@@ -78,6 +78,7 @@ def ask(session: Session, rfx_id: int, question: str, all_line_ids: list[str]) -
         "past_orders": tools.past_orders,
         "past_rfqs": tools.past_rfqs,
         "certificates": tools.certificates,
+        "qualified_vendors": tools.qualified_vendors,
         "run_sandbox": _run_sandbox,
     }
 

@@ -52,7 +52,11 @@ def compute_eligibility(
         if rule.get("type") == "require_valid_cert":
             schemes = rule.get("schemes", [])
             cert = facts.certificate
-            if cert is None or cert.scheme not in schemes:
+            # certificates print full scheme names ("BRCGS Food Safety Issue 9",
+            # "IFS Food Higher Level") — match on the required scheme being a
+            # substring, not exact equality.
+            cert_matches = cert is not None and any(s.upper() in cert.scheme.upper() for s in schemes)
+            if not cert_matches:
                 status = "not_eligible"
                 reasons.append(f"No valid certificate for required scheme(s): {', '.join(schemes)}")
             elif cert.valid_until is not None and cert.valid_until < award_date:

@@ -10,7 +10,7 @@ from app.api.deps import get_session
 from app.channel.inbox import copy_to_inbox, guess_supplier, list_seed_files, save_upload
 from app.events import emit
 from app.models import AuditLog, Document, Supplier
-from app.pipeline import process_document
+from app.pipeline import process_certificate_document, process_document
 
 router = APIRouter(prefix="/api")
 
@@ -27,11 +27,12 @@ def _register_document(session: Session, rfx_id: int, path: Path) -> Document | 
     if supplier is None:
         return None  # caller must ask the buyer to pick a supplier
 
+    is_certificate = path.name.endswith("food_safety_certificate.pdf")
     sha256 = hashlib.sha256(path.read_bytes()).hexdigest()
     doc = Document(
         supplier_id=supplier.id,
         filename=path.name,
-        kind=EXT_TO_KIND.get(path.suffix.lower(), "unknown"),
+        kind="certificate" if is_certificate else EXT_TO_KIND.get(path.suffix.lower(), "unknown"),
         sha256=sha256,
         path=str(path),
     )
@@ -47,14 +48,12 @@ def simulate_inbox(rfx_id: int, session: Session = Depends(get_session)):
     created = []
     unmatched = []
     for src in list_seed_files():
-        if src.name.endswith("food_safety_certificate.pdf"):
-            continue  # certificates are linked via a separate step; skip for now
         dest = copy_to_inbox(src)
         doc = _register_document(session, rfx_id, dest)
         if doc is None:
             unmatched.append(dest.name)
         else:
-            created.append({"id": doc.id, "filename": doc.filename, "supplier_id": doc.supplier_id})
+            created.append({"id": doc.id, "filename": doc.filename, "supplier_id": doc.supplier_id, "kind": doc.kind})
             emit("doc_received", {"document_id": doc.id, "filename": doc.filename, "supplier_id": doc.supplier_id})
     return {"documents": created, "unmatched": unmatched}
 
@@ -77,9 +76,22 @@ def extract_document(document_id: int, live: bool = False, session: Session = De
     if document is None:
         raise HTTPException(404, "document not found")
     try:
-        return process_document(session, document, live=live)
+        if document.kind == "certificate":
+            result = process_certificate_document(session, document, live=live)
+        else:
+            result = process_document(session, document, live=live)
     except Exception as exc:  # noqa: BLE001 - surfaced as a friendly error card, not a 500
         document.status = "needs_attention"
         session.add(document)
         session.commit()
         raise HTTPException(502, detail={"error": "Extraction failed", "message": str(exc), "retryable": True})
+
+    from app.validate.service import compute_and_persist_eligibility
+
+    compute_and_persist_eligibility(session, _rfx_id_for_document(session, document))
+    return result
+
+
+def _rfx_id_for_document(session: Session, document: Document) -> int:
+    supplier = session.get(Supplier, document.supplier_id)
+    return supplier.rfx_id
