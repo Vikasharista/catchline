@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+    <h2 style="font-size:15px">Review queue</h2>
+    <span id="progress" class="badge badge-neutral"></span>
+  </div>
+  <div id="review-item"></div>
+</div>
+
+<script>
+const RFX_ID = {{ rfx_id }};
+let items = [];
+let idx = 0;
+
+function renderItem() {
+  const el = document.getElementById('review-item');
+  document.getElementById('progress').textContent = items.length ? `${idx + 1} of ${items.length}` : '0 of 0';
+  if (!items.length) {
+    el.innerHTML = '<div style="font-size:13px;color:var(--cl-text-faint)">Nothing to review.</div>';
+    return;
+  }
+  const item = items[idx];
+  el.innerHTML = `
+    <div style="border:1px solid var(--cl-border);border-radius:8px;padding:14px">
+      <span class="badge badge-${item.severity === 'red' ? 'red' : item.severity === 'amber' ? 'amber' : 'neutral'}">${item.code}</span>
+      <div style="font-size:13px;margin:8px 0">${item.message}</div>
+      <div style="font-size:12px;color:var(--cl-text-muted);font-style:italic">"${item.raw_text || ''}"</div>
+      <div style="font-size:12px;margin:8px 0">Line ${item.line_id || '—'} · EUR/kg net DAP: ${item.eur_kg_net_dap ?? 'null'}</div>
+      <div style="display:flex;gap:6px;margin-top:10px">
+        <button class="btn btn-primary" style="height:28px;font-size:11px" onclick="resolve('accept')">Accept (A)</button>
+        <button class="btn btn-secondary" style="height:28px;font-size:11px" onclick="editValue()">Edit (E)</button>
+        <button class="btn btn-secondary" style="height:28px;font-size:11px" onclick="resolve('ask_supplier')">Ask supplier (S)</button>
+        <button class="btn btn-secondary" style="height:28px;font-size:11px" onclick="resolve('exclude')">Exclude (X)</button>
+      </div>
+    </div>`;
+}
+
+async function resolve(action, value, reason) {
+  const item = items[idx];
+  await fetch(`/api/review/${item.flag_id}/resolve`, {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({action, value, reason}),
+  });
+  items.splice(idx, 1);
+  if (idx >= items.length) idx = Math.max(0, items.length - 1);
+  renderItem();
+}
+
+function editValue() {
+  const value = parseFloat(prompt('New EUR/kg net DAP value:'));
+  const reason = prompt('Reason for the edit:');
+  if (!isNaN(value) && reason) resolve('edit', value, reason);
+}
+
+document.addEventListener('keydown', (e) => {
+  if (!items.length) return;
+  if (e.key === 'a' || e.key === 'A') resolve('accept');
+  if (e.key === 'e' || e.key === 'E') editValue();
+  if (e.key === 's' || e.key === 'S') resolve('ask_supplier');
+  if (e.key === 'x' || e.key === 'X') resolve('exclude');
+});
+
+async function load() {
+  const res = await fetch(`/api/rfx/${RFX_ID}/review`);
+  const data = await res.json();
+  items = data.items;
+  idx = 0;
+  renderItem();
+}
+
+load();
+</script>
+{% endblock %}

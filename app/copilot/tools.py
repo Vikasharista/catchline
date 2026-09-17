@@ -10,6 +10,7 @@ from typing import Any
 
 from sqlmodel import Session, select
 
+from app.events import emit
 from app.models import ChangeProposal, CopilotQuestion, Rfx, RfxVersion, SectionState
 from app.schemas.draft import RfxDraft, classify_risk
 
@@ -92,6 +93,7 @@ class CopilotTools:
         self.session.commit()
         self.session.refresh(proposal)
         self.created_proposals.append(proposal)
+        emit("proposal_created", {"proposal_id": proposal.id, "section": section, "status": status, "risk": risk})
         return {"proposal_id": proposal.id, "status": status, "risk": risk}
 
     def propose_section(
@@ -123,6 +125,7 @@ class CopilotTools:
         self.session.commit()
         self.session.refresh(q)
         self.created_questions.append(q)
+        emit("question_created", {"question_id": q.id, "question": question})
         return {"question_id": q.id}
 
     def as_impls(self) -> dict[str, Any]:

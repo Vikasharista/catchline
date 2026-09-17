@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h2 style="font-size:15px;margin-bottom:12px">Comparison grid — EUR/kg net DAP Boulogne</h2>
+  <div id="grid" style="overflow:auto"></div>
+</div>
+
+<script>
+const RFX_ID = {{ rfx_id }};
+
+async function load() {
+  const res = await fetch(`/api/rfx/${RFX_ID}/comparison`);
+  const data = await res.json();
+  const lineIds = [...new Set(data.rows.map(r => r.line_id))].sort();
+
+  const cellFor = (lineId, supplierId) => data.rows.find(r => r.line_id === lineId && r.supplier_id === supplierId);
+
+  let html = '<table style="border-collapse:collapse;font-size:12px;width:100%">';
+  html += '<tr><th style="text-align:left;padding:6px;border-bottom:1px solid var(--cl-border)">Line</th>';
+  for (const h of data.headers) {
+    html += `<th style="padding:6px;border-bottom:1px solid var(--cl-border)">
+      ${h.name}<br><span class="badge badge-neutral" style="margin-top:4px">${h.eligibility}</span>
+      <div style="font-size:10px;color:var(--cl-text-faint)">${h.coverage} lines</div>
+    </th>`;
+  }
+  html += '</tr>';
+
+  for (const lineId of lineIds) {
+    html += `<tr><td style="padding:6px;border-bottom:1px solid var(--cl-border)">${lineId}</td>`;
+    const rowVals = data.headers.map(h => cellFor(lineId, h.supplier_id)?.eur_kg_net_dap).filter(v => v != null);
+    const min = rowVals.length ? Math.min(...rowVals) : null;
+    for (const h of data.headers) {
+      const cell = cellFor(lineId, h.supplier_id);
+      const isMin = cell && cell.eur_kg_net_dap === min;
+      html += `<td style="padding:6px;border-bottom:1px solid var(--cl-border);text-align:right;${isMin ? 'font-weight:700;color:var(--cl-success)' : ''}">
+        ${cell ? cell.eur_kg_net_dap?.toFixed(2) ?? '—' : '<span style="color:var(--cl-text-faint)">not quoted</span>'}
+      </td>`;
+    }
+    html += '</tr>';
+  }
+  html += '</table>';
+  document.getElementById('grid').innerHTML = html;
+}
+
+load();
+</script>
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card" style="display:flex;flex-direction:column;height:100%">
+  <h2 style="font-size:15px;margin-bottom:10px">Ask the analyst</h2>
+  <div id="answers" style="flex:1;overflow:auto;display:flex;flex-direction:column;gap:12px;margin-bottom:10px"></div>
+  <div style="display:flex;gap:8px">
+    <input id="q-input" placeholder="e.g. Who didn't quote everything?"
+           style="flex:1;height:36px;padding:0 10px;border:1px solid var(--cl-border);border-radius:8px;font-family:inherit;font-size:13px">
+    <button class="btn btn-primary" id="q-send">Ask</button>
+  </div>
+</div>
+
+<script>
+const RFX_ID = {{ rfx_id }};
+
+document.getElementById('q-send').addEventListener('click', async () => {
+  const input = document.getElementById('q-input');
+  const question = input.value.trim();
+  if (!question) return;
+  input.value = '';
+  const res = await fetch(`/api/rfx/${RFX_ID}/analyst/messages`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({question}) });
+  const card = await res.json();
+  const log = document.getElementById('answers');
+  const toolCalls = (card.how_i_got_this || []).map(t => `<li>${t.tool}(${JSON.stringify(t.arguments)})</li>`).join('');
+  log.innerHTML += `
+    <div class="card">
+      <div style="font-weight:600;font-size:13px">${question}</div>
+      <div style="font-size:13px;margin:8px 0;white-space:pre-wrap">${card.body}</div>
+      <div style="font-size:11px;color:var(--cl-text-muted)">${card.trust_note}</div>
+      <details style="margin-top:8px;font-size:11px"><summary>How I got this</summary><ul>${toolCalls}</ul></details>
+    </div>`;
+  log.scrollTop = log.scrollHeight;
+});
+</script>
+{% endblock %}

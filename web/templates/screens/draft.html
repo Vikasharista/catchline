@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="display:flex;gap:16px;height:100%">
+  <div class="card" style="flex:2;display:flex;flex-direction:column;min-height:0">
+    <h2 style="font-size:15px;margin-bottom:10px">Co-pilot chat</h2>
+    <div id="chat-log" style="flex:1;overflow:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:10px;font-size:13px"></div>
+    <div style="display:flex;gap:8px">
+      <input id="chat-input" placeholder="e.g. Annual frozen raw-material contract, delivered Boulogne, add salmon HOG 3-4 kg 60 t"
+             style="flex:1;height:36px;padding:0 10px;border:1px solid var(--cl-border);border-radius:8px;font-family:inherit;font-size:13px">
+      <button class="btn btn-primary" id="chat-send">Send</button>
+    </div>
+    <div style="margin-top:10px">
+      <button class="btn btn-secondary" id="load-reference">Load reference RFx</button>
+    </div>
+  </div>
+
+  <div class="card" style="flex:3;display:flex;flex-direction:column;min-height:0">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <h2 style="font-size:15px">Draft — {{ heading }}</h2>
+      <span class="badge badge-neutral">{{ pending_count }} pending</span>
+    </div>
+    <div id="sections" style="display:flex;flex-direction:column;gap:10px;overflow:auto"></div>
+    <div id="pending-proposals" style="margin-top:14px;display:flex;flex-direction:column;gap:8px"></div>
+  </div>
+</div>
+
+<script>
+const RFX_ID = {{ rfx_id }};
+
+async function refreshDraft() {
+  const res = await fetch(`/api/rfx/${RFX_ID}`);
+  const data = await res.json();
+  const sectionsEl = document.getElementById('sections');
+  const sectionKeys = ['scope', 'lines', 'questionnaire', 'terms'];
+  sectionsEl.innerHTML = sectionKeys.map(key => {
+    const status = data.sections[key] || 'drafting';
+    const badgeClass = status === 'signed_off' ? 'badge-success' : status === 'reopened' ? 'badge-amber' : 'badge-neutral';
+    let summary = '';
+    if (key === 'lines') summary = `${(data.draft.lines || []).length} line(s)`;
+    if (key === 'scope') summary = data.draft.scope.title || 'not set';
+    if (key === 'questionnaire') summary = `${(data.draft.questionnaire || []).length} question(s)`;
+    if (key === 'terms') summary = data.draft.terms.payment_terms || 'not set';
+    return `<div style="border:1px solid var(--cl-border);border-radius:8px;padding:10px 12px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <strong style="font-size:13px;text-transform:capitalize">${key}</strong>
+        <span class="badge ${badgeClass}">${status}</span>
+      </div>
+      <div style="font-size:12px;color:var(--cl-text-muted);margin-top:4px">${summary}</div>
+      <div style="margin-top:8px">
+        <button class="btn btn-secondary" style="height:26px;font-size:11px" onclick="signOff('${key}')">Sign off</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  const pendingEl = document.getElementById('pending-proposals');
+  pendingEl.innerHTML = data.pending_proposals.map(p => `
+    <div class="card" style="padding:10px 12px">
+      <div style="display:flex;justify-content:space-between">
+        <span class="badge ${p.origin === 'from_you' ? 'badge-success' : 'badge-amber'}">${p.origin === 'from_you' ? 'From you' : 'Suggested'}</span>
+        <span class="badge ${p.risk === 'money_or_eligibility' ? 'badge-red' : 'badge-neutral'}">${p.risk}</span>
+      </div>
+      <div style="font-size:12px;margin:6px 0">${p.section}.${p.target} → ${JSON.stringify(p.value)}</div>
+      <div style="font-size:11px;color:var(--cl-text-muted);margin-bottom:8px">${p.reason}</div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-primary" style="height:26px;font-size:11px" onclick="decide(${p.id}, 'accept')">Accept</button>
+        <button class="btn btn-secondary" style="height:26px;font-size:11px" onclick="decide(${p.id}, 'reject')">Reject</button>
+      </div>
+    </div>`).join('') || '<div style="font-size:12px;color:var(--cl-text-faint)">No pending proposals.</div>';
+}
+
+async function decide(id, action) {
+  await fetch(`/api/proposals/${id}/${action}`, { method: 'POST' });
+  refreshDraft();
+}
+
+async function signOff(key) {
+  const res = await fetch(`/api/rfx/${RFX_ID}/sections/${key}/signoff`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({signed_by:'buyer'}) });
+  if (!res.ok) {
+    const body = await res.json();
+    alert('Cannot sign off:\n' + (body.detail.failures || []).join('\n'));
+  }
+  refreshDraft();
+}
+
+document.getElementById('chat-send').addEventListener('click', async () => {
+  const input = document.getElementById('chat-input');
+  const message = input.value.trim();
+  if (!message) return;
+  const log = document.getElementById('chat-log');
+  log.innerHTML += `<div><strong>You:</strong> ${message}</div>`;
+  input.value = '';
+  const res = await fetch(`/api/rfx/${RFX_ID}/copilot/messages`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({message}) });
+  const data = await res.json();
+  log.innerHTML += `<div><strong>Co-pilot:</strong> ${data.text}</div>`;
+  log.scrollTop = log.scrollHeight;
+  refreshDraft();
+});
+
+document.getElementById('load-reference').addEventListener('click', async () => {
+  await fetch(`/api/rfx/${RFX_ID}/seed-reference`, { method: 'POST' });
+  refreshDraft();
+});
+
+refreshDraft();
+</script>
+{% endblock %}

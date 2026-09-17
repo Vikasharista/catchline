@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h2 style="font-size:15px;margin-bottom:12px">Award and export</h2>
+  <div style="display:flex;gap:10px">
+    <a class="btn btn-primary" href="/api/rfx/{{ rfx_id }}/award/memo.pdf" target="_blank">Download award memo (PDF)</a>
+    <a class="btn btn-secondary" href="/api/rfx/{{ rfx_id }}/award/export.xlsx" target="_blank">Download award export (xlsx)</a>
+  </div>
+  <p style="font-size:12px;color:var(--cl-text-muted);margin-top:14px">
+    The memo and export are built from the same tool results shown on the Ask screen — the
+    recommendation, total spend, award table, risks and assumptions never contain a number the
+    model invented.
+  </p>
+</div>
+{% endblock %}

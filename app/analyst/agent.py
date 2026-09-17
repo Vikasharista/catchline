@@ -10,6 +10,7 @@ from app.analyst.data import build_quotes_dataframe
 from app.analyst.prompts import SYSTEM_PROMPT, TOOL_SCHEMAS
 from app.analyst.sandbox import SandboxError, run_sandbox
 from app.analyst.tools import AnalystTools
+from app.events import emit
 from app.llm import run_tool_loop
 from app.models import ChatTurn, Supplier
 
@@ -73,9 +74,11 @@ def ask(session: Session, rfx_id: int, question: str, all_line_ids: list[str]) -
     session.add(assistant_turn)
     session.commit()
 
-    return {
+    card = {
         "headline": text.split("\n", 1)[0] if text else "",
         "body": text,
         "trust_note": trust_note,
         "how_i_got_this": transcript,
     }
+    emit("answer_card", card)
+    return card
