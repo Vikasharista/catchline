@@ -24,12 +24,37 @@
   </div>
 </div>
 
+<div id="error-banner" style="display:none;background:var(--cl-red-bg);color:var(--cl-red);border-radius:8px;padding:10px 12px;font-size:12px;margin-bottom:10px"></div>
+
 <script>
 const RFX_ID = {{ rfx_id }};
 
+async function safeFetch(url, opts) {
+  const res = await fetch(url, opts);
+  let body = null;
+  try { body = await res.json(); } catch (e) { /* no body */ }
+  if (!res.ok) {
+    const msg = (body && body.detail && (body.detail.message || body.detail.error || JSON.stringify(body.detail)))
+      || (body && JSON.stringify(body))
+      || res.statusText
+      || `HTTP ${res.status}`;
+    throw new Error(msg);
+  }
+  return body;
+}
+
+function showError(err) {
+  const banner = document.getElementById('error-banner');
+  banner.textContent = `Something went wrong: ${err.message}`;
+  banner.style.display = 'block';
+}
+
+function clearError() {
+  document.getElementById('error-banner').style.display = 'none';
+}
+
 async function refreshDraft() {
-  const res = await fetch(`/api/rfx/${RFX_ID}`);
-  const data = await res.json();
+  const data = await safeFetch(`/api/rfx/${RFX_ID}`);
   const sectionsEl = document.getElementById('sections');
   const sectionKeys = ['scope', 'lines', 'questionnaire', 'terms'];
   sectionsEl.innerHTML = sectionKeys.map(key => {
@@ -69,17 +94,19 @@ async function refreshDraft() {
 }
 
 async function decide(id, action) {
-  await fetch(`/api/proposals/${id}/${action}`, { method: 'POST' });
-  refreshDraft();
+  try {
+    clearError();
+    await safeFetch(`/api/proposals/${id}/${action}`, { method: 'POST' });
+    refreshDraft();
+  } catch (err) { showError(err); }
 }
 
 async function signOff(key) {
-  const res = await fetch(`/api/rfx/${RFX_ID}/sections/${key}/signoff`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({signed_by:'buyer'}) });
-  if (!res.ok) {
-    const body = await res.json();
-    alert('Cannot sign off:\n' + (body.detail.failures || []).join('\n'));
-  }
-  refreshDraft();
+  try {
+    clearError();
+    await safeFetch(`/api/rfx/${RFX_ID}/sections/${key}/signoff`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({signed_by:'buyer'}) });
+    refreshDraft();
+  } catch (err) { showError(err); }
 }
 
 document.getElementById('chat-send').addEventListener('click', async () => {
@@ -89,18 +116,25 @@ document.getElementById('chat-send').addEventListener('click', async () => {
   const log = document.getElementById('chat-log');
   log.innerHTML += `<div><strong>You:</strong> ${message}</div>`;
   input.value = '';
-  const res = await fetch(`/api/rfx/${RFX_ID}/copilot/messages`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({message}) });
-  const data = await res.json();
-  log.innerHTML += `<div><strong>Co-pilot:</strong> ${data.text}</div>`;
+  try {
+    clearError();
+    const data = await safeFetch(`/api/rfx/${RFX_ID}/copilot/messages`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({message}) });
+    log.innerHTML += `<div><strong>Co-pilot:</strong> ${data.text}</div>`;
+    refreshDraft();
+  } catch (err) {
+    log.innerHTML += `<div style="color:var(--cl-red)"><strong>Co-pilot error:</strong> ${err.message}</div>`;
+  }
   log.scrollTop = log.scrollHeight;
-  refreshDraft();
 });
 
 document.getElementById('load-reference').addEventListener('click', async () => {
-  await fetch(`/api/rfx/${RFX_ID}/seed-reference`, { method: 'POST' });
-  refreshDraft();
+  try {
+    clearError();
+    await safeFetch(`/api/rfx/${RFX_ID}/seed-reference`, { method: 'POST' });
+    refreshDraft();
+  } catch (err) { showError(err); }
 });
 
-refreshDraft();
+refreshDraft().catch(showError);
 </script>
 {% endblock %}

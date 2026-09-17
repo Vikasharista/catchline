@@ -5,6 +5,7 @@
     <h2 style="font-size:15px">Review queue</h2>
     <span id="progress" class="badge badge-neutral"></span>
   </div>
+  <div id="error-banner" style="display:none;background:var(--cl-red-bg);color:var(--cl-red);border-radius:8px;padding:10px 12px;font-size:12px;margin:12px 0"></div>
   <div id="review-item"></div>
 </div>
 
@@ -36,15 +37,28 @@ function renderItem() {
     </div>`;
 }
 
+function showError(err) {
+  const banner = document.getElementById('error-banner');
+  banner.textContent = `Something went wrong: ${err.message}`;
+  banner.style.display = 'block';
+}
+
 async function resolve(action, value, reason) {
   const item = items[idx];
-  await fetch(`/api/review/${item.flag_id}/resolve`, {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({action, value, reason}),
-  });
-  items.splice(idx, 1);
-  if (idx >= items.length) idx = Math.max(0, items.length - 1);
-  renderItem();
+  try {
+    document.getElementById('error-banner').style.display = 'none';
+    const res = await fetch(`/api/review/${item.flag_id}/resolve`, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({action, value, reason}),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      throw new Error((body && body.detail && (body.detail.message || body.detail)) || res.statusText);
+    }
+    items.splice(idx, 1);
+    if (idx >= items.length) idx = Math.max(0, items.length - 1);
+    renderItem();
+  } catch (err) { showError(err); }
 }
 
 function editValue() {
@@ -62,11 +76,14 @@ document.addEventListener('keydown', (e) => {
 });
 
 async function load() {
-  const res = await fetch(`/api/rfx/${RFX_ID}/review`);
-  const data = await res.json();
-  items = data.items;
-  idx = 0;
-  renderItem();
+  try {
+    const res = await fetch(`/api/rfx/${RFX_ID}/review`);
+    if (!res.ok) throw new Error(res.statusText || `HTTP ${res.status}`);
+    const data = await res.json();
+    items = data.items;
+    idx = 0;
+    renderItem();
+  } catch (err) { showError(err); }
 }
 
 load();

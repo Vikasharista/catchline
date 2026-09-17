@@ -9,8 +9,26 @@
 const RFX_ID = {{ rfx_id }};
 
 async function load() {
-  const res = await fetch(`/api/rfx/${RFX_ID}/comparison`);
-  const data = await res.json();
+  const grid = document.getElementById('grid');
+  let data;
+  try {
+    const res = await fetch(`/api/rfx/${RFX_ID}/comparison`);
+    if (!res.ok) throw new Error(res.statusText || `HTTP ${res.status}`);
+    data = await res.json();
+  } catch (err) {
+    grid.innerHTML = `<div style="font-size:12px;color:var(--cl-red)">Something went wrong: ${err.message}</div>`;
+    return;
+  }
+
+  if (!data.headers.length) {
+    grid.innerHTML = '<div style="font-size:13px;color:var(--cl-text-faint)">No suppliers yet — load the reference RFx on the Draft screen and simulate the inbox first.</div>';
+    return;
+  }
+  if (!data.rows.length) {
+    grid.innerHTML = '<div style="font-size:13px;color:var(--cl-text-faint)">No extracted quotes yet — run extraction on documents in the Inbox screen first.</div>';
+    return;
+  }
+
   const lineIds = [...new Set(data.rows.map(r => r.line_id))].sort();
 
   const cellFor = (lineId, supplierId) => data.rows.find(r => r.line_id === lineId && r.supplier_id === supplierId);

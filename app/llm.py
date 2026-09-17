@@ -60,6 +60,7 @@ def complete(
     live: bool = False,
     prompt_version: str = "v1",
     max_retries: int = 2,
+    max_tokens: int = 8192,
 ) -> LLMResult:
     """Call the configured LLM once.
 
@@ -68,6 +69,10 @@ def complete(
     - Retries with backoff, then falls back to LLM_FALLBACK if configured.
     - `response_format` follows the OpenAI/LiteLLM json_schema shape for
       structured output.
+    - `max_tokens` defaults well above litellm's provider default (4096):
+      a truncated structured-output generation can come back as an empty
+      but schema-valid stub instead of an error, which silently looks like
+      a successful call with nothing in it.
     """
     full_cache_key = None
     if cache_key:
@@ -96,6 +101,7 @@ def complete(
                     model=model,
                     messages=messages,
                     temperature=settings.llm_temperature,
+                    max_tokens=max_tokens,
                 )
                 if tools:
                     kwargs["tools"] = tools

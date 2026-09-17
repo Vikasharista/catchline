@@ -5,6 +5,7 @@
     <h2 style="font-size:15px">Supplier replies</h2>
     <button class="btn btn-primary" id="simulate-btn">Simulate replies arriving</button>
   </div>
+  <div id="error-banner" style="display:none;background:var(--cl-red-bg);color:var(--cl-red);border-radius:8px;padding:10px 12px;font-size:12px;margin-bottom:12px"></div>
   <div id="summary-strip" style="font-size:12px;color:var(--cl-text-muted);margin-bottom:14px"></div>
   <div id="doc-list" style="display:flex;flex-direction:column;gap:8px"></div>
 </div>
@@ -12,6 +13,30 @@
 <script>
 const RFX_ID = {{ rfx_id }};
 let docs = [];
+
+async function safeFetch(url, opts) {
+  const res = await fetch(url, opts);
+  let body = null;
+  try { body = await res.json(); } catch (e) { /* no body */ }
+  if (!res.ok) {
+    const msg = (body && body.detail && (body.detail.message || body.detail.error || JSON.stringify(body.detail)))
+      || (body && JSON.stringify(body))
+      || res.statusText
+      || `HTTP ${res.status}`;
+    throw new Error(msg);
+  }
+  return body;
+}
+
+function showError(err) {
+  const banner = document.getElementById('error-banner');
+  banner.textContent = `Something went wrong: ${err.message}`;
+  banner.style.display = 'block';
+}
+
+function clearError() {
+  document.getElementById('error-banner').style.display = 'none';
+}
 
 function renderDocs() {
   const list = document.getElementById('doc-list');
@@ -30,20 +55,28 @@ function renderDocs() {
 }
 
 async function extractDoc(id) {
-  document.getElementById(`status-${id}`).textContent = 'extracting…';
-  const res = await fetch(`/api/documents/${id}/extract?live=false`, { method: 'POST' });
-  const data = await res.json();
-  document.getElementById(`status-${id}`).textContent = data.status + (data.items != null ? ` · ${data.items} items` : '');
+  const statusEl = document.getElementById(`status-${id}`);
+  statusEl.textContent = 'extracting…';
+  try {
+    clearError();
+    const data = await safeFetch(`/api/documents/${id}/extract?live=false`, { method: 'POST' });
+    statusEl.textContent = data.status + (data.items != null ? ` · ${data.items} items` : '');
+  } catch (err) {
+    statusEl.textContent = 'failed';
+    showError(err);
+  }
 }
 
 document.getElementById('simulate-btn').addEventListener('click', async () => {
-  const res = await fetch(`/api/rfx/${RFX_ID}/inbox/simulate`, { method: 'POST' });
-  const data = await res.json();
-  docs = docs.concat(data.documents);
-  renderDocs();
-  if (data.unmatched.length) {
-    document.getElementById('summary-strip').textContent += ` ${data.unmatched.length} file(s) need a supplier picked manually.`;
-  }
+  try {
+    clearError();
+    const data = await safeFetch(`/api/rfx/${RFX_ID}/inbox/simulate`, { method: 'POST' });
+    docs = docs.concat(data.documents);
+    renderDocs();
+    if (data.unmatched.length) {
+      document.getElementById('summary-strip').textContent += ` ${data.unmatched.length} file(s) need a supplier picked manually.`;
+    }
+  } catch (err) { showError(err); }
 });
 
 renderDocs();
