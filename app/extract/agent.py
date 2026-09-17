@@ -43,7 +43,12 @@ def extract_pass_a(
     }
 
     document_has_content = bool(_document_text(doc).strip()) or bool(_document_images(doc))
-    max_attempts = 2
+    # Empirically (live testing), a structured-output call on a longer
+    # document occasionally comes back as a syntactically valid but empty
+    # stub — not a schema error, just model non-determinism. Two attempts
+    # left this failing intermittently; three brings the chance of three
+    # consecutive empty stubs low enough to trust in practice.
+    max_attempts = 3
     last_extraction: DocumentExtraction | None = None
 
     for attempt in range(max_attempts):

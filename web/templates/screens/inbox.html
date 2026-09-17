@@ -3,8 +3,15 @@
 <div class="card">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
     <h2 style="font-size:15px">Supplier replies</h2>
-    <button class="btn btn-primary" id="simulate-btn">Simulate replies arriving</button>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-secondary" id="simulate-btn">Simulate replies arriving</button>
+      <button class="btn btn-primary" id="seed-extract-all-btn">Seed &amp; extract all</button>
+    </div>
   </div>
+  <p style="font-size:11.5px;color:var(--cl-text-muted);margin-bottom:8px">
+    "Seed &amp; extract all" copies all 5 supplier replies and 4 certificates into the inbox and runs real extraction
+    on each (a live LLM call, or its cache) — populates Review, Compare and Award with real data in one step.
+  </p>
   <div id="error-banner" style="display:none;background:var(--cl-red-bg);color:var(--cl-red);border-radius:8px;padding:10px 12px;font-size:12px;margin-bottom:12px"></div>
   <div id="summary-strip" style="font-size:12px;color:var(--cl-text-muted);margin-bottom:14px"></div>
   <div id="doc-list" style="display:flex;flex-direction:column;gap:8px"></div>
@@ -44,10 +51,10 @@ function renderDocs() {
     <div class="card" style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px">
       <div>
         <strong style="font-size:13px">${d.filename}</strong>
-        <span style="font-size:11px;color:var(--cl-text-faint);margin-left:8px">supplier ${d.supplier_id}</span>
+        <span style="font-size:11px;color:var(--cl-text-faint);margin-left:8px">supplier ${d.supplier_id}${d.kind === 'certificate' ? ' · certificate' : ''}</span>
       </div>
       <div style="display:flex;align-items:center;gap:8px">
-        <span id="status-${d.id}" class="badge badge-neutral">received</span>
+        <span id="status-${d.id}" class="badge badge-neutral">${d.initial_status || 'received'}</span>
         <button class="btn btn-secondary" style="height:26px;font-size:11px" onclick="extractDoc(${d.id})">Extract</button>
       </div>
     </div>`).join('');
@@ -77,6 +84,30 @@ document.getElementById('simulate-btn').addEventListener('click', async () => {
       document.getElementById('summary-strip').textContent += ` ${data.unmatched.length} file(s) need a supplier picked manually.`;
     }
   } catch (err) { showError(err); }
+});
+
+document.getElementById('seed-extract-all-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('seed-extract-all-btn');
+  btn.disabled = true;
+  btn.textContent = 'Seeding & extracting… (can take a minute or two)';
+  try {
+    clearError();
+    const data = await safeFetch(`/api/rfx/${RFX_ID}/inbox/seed-and-extract-all?live=false`, { method: 'POST' });
+    docs = data.extracted.map(e => ({ id: e.id, filename: e.filename, supplier_id: null, kind: null, initial_status: `${e.status}${e.items != null ? ' · ' + e.items + ' items' : ''}` }))
+      .concat(data.failed.map(f => ({ id: f.id, filename: f.filename, supplier_id: null, kind: null, initial_status: 'failed' })));
+    renderDocs();
+    document.getElementById('summary-strip').textContent =
+      `${data.documents_registered} document(s) registered · ${data.extracted.length} extracted · ${data.failed.length} failed`
+      + (data.unmatched.length ? ` · ${data.unmatched.length} unmatched` : '');
+    if (data.failed.length) {
+      showError(new Error(data.failed.map(f => `${f.filename}: ${f.error}`).join('; ')));
+    }
+  } catch (err) {
+    showError(err);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Seed & extract all';
+  }
 });
 
 renderDocs();

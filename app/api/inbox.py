@@ -70,16 +70,24 @@ async def upload_document(rfx_id: int, file: UploadFile, session: Session = Depe
     return {"id": doc.id, "filename": doc.filename, "supplier_id": doc.supplier_id}
 
 
+def _extract_one(session: Session, document: Document, *, live: bool) -> dict:
+    if document.kind == "certificate":
+        return process_certificate_document(session, document, live=live)
+    return process_document(session, document, live=live)
+
+
+def _rfx_id_for_document(session: Session, document: Document) -> int:
+    supplier = session.get(Supplier, document.supplier_id)
+    return supplier.rfx_id
+
+
 @router.post("/documents/{document_id}/extract")
 def extract_document(document_id: int, live: bool = False, session: Session = Depends(get_session)):
     document = session.get(Document, document_id)
     if document is None:
         raise HTTPException(404, "document not found")
     try:
-        if document.kind == "certificate":
-            result = process_certificate_document(session, document, live=live)
-        else:
-            result = process_document(session, document, live=live)
+        result = _extract_one(session, document, live=live)
     except Exception as exc:  # noqa: BLE001 - surfaced as a friendly error card, not a 500
         document.status = "needs_attention"
         session.add(document)
@@ -92,6 +100,35 @@ def extract_document(document_id: int, live: bool = False, session: Session = De
     return result
 
 
-def _rfx_id_for_document(session: Session, document: Document) -> int:
-    supplier = session.get(Supplier, document.supplier_id)
-    return supplier.rfx_id
+@router.post("/rfx/{rfx_id}/inbox/seed-and-extract-all")
+def seed_and_extract_all(rfx_id: int, live: bool = False, session: Session = Depends(get_session)):
+    """Convenience for the demo: simulates the inbox (all 5 replies + 4
+    certificates) and extracts every document, so Review/Compare/Award have
+    real data without clicking Extract nine times. Each document still goes
+    through a real LLM call (or its cache) — nothing here is fabricated,
+    it's just fewer clicks. One document's failure doesn't stop the rest.
+    """
+    simulate_result = simulate_inbox(rfx_id, session)
+
+    extracted, failed = [], []
+    for doc_summary in simulate_result["documents"]:
+        document = session.get(Document, doc_summary["id"])
+        try:
+            result = _extract_one(session, document, live=live)
+            extracted.append({"id": document.id, "filename": document.filename, **result})
+        except Exception as exc:  # noqa: BLE001 - one bad document shouldn't stop the batch
+            document.status = "needs_attention"
+            session.add(document)
+            session.commit()
+            failed.append({"id": document.id, "filename": document.filename, "error": str(exc)})
+
+    from app.validate.service import compute_and_persist_eligibility
+
+    compute_and_persist_eligibility(session, rfx_id)
+
+    return {
+        "documents_registered": len(simulate_result["documents"]),
+        "extracted": extracted,
+        "failed": failed,
+        "unmatched": simulate_result["unmatched"],
+    }
