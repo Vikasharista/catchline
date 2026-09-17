@@ -10,12 +10,20 @@ from app.analyst.data import build_quotes_dataframe
 from app.analyst.prompts import SYSTEM_PROMPT, TOOL_SCHEMAS
 from app.analyst.sandbox import SandboxError, run_sandbox
 from app.analyst.tools import AnalystTools
+from app.copilot.tools import get_current_draft
 from app.events import emit
+from app.knowledge.graph import build_entity_graph, is_in_scope
 from app.llm import run_tool_loop
 from app.models import ChatTurn, Supplier
 
 PROMPT_VERSION = "v1"
 MAX_STEPS = 6
+
+OUT_OF_SCOPE_REPLY = (
+    "I can only help with this RFx and Nordcap's sourcing history — suppliers, "
+    "items/species, certificates, quotes, contracts, past purchase orders and "
+    "past RFQs. That question is outside what I can answer here."
+)
 
 
 def _history(session: Session, rfx_id: int, limit: int = 20) -> list[dict]:
@@ -33,9 +41,25 @@ def ask(session: Session, rfx_id: int, question: str, all_line_ids: list[str]) -
     session.add(user_turn)
     session.commit()
 
+    draft = get_current_draft(session, rfx_id)
+    graph = build_entity_graph(session, draft_lines=draft.get("lines", []))
+    in_scope, reason = is_in_scope(question, graph)
+    if not in_scope:
+        assistant_turn = ChatTurn(rfx_id=rfx_id, thread="analyst", role="assistant", content=OUT_OF_SCOPE_REPLY)
+        session.add(assistant_turn)
+        session.commit()
+        card = {
+            "headline": OUT_OF_SCOPE_REPLY,
+            "body": OUT_OF_SCOPE_REPLY,
+            "trust_note": f"Refused before calling the model ({reason}).",
+            "how_i_got_this": [],
+        }
+        emit("answer_card", card)
+        return card
+
     quotes = build_quotes_dataframe(session, rfx_id)
     supplier_ids = [s.id for s in session.exec(select(Supplier).where(Supplier.rfx_id == rfx_id)).all()]
-    tools = AnalystTools(quotes, all_line_ids=all_line_ids, all_supplier_ids=supplier_ids)
+    tools = AnalystTools(quotes, all_line_ids=all_line_ids, all_supplier_ids=supplier_ids, session=session)
 
     def _run_sandbox(code: str):
         try:
@@ -51,6 +75,9 @@ def ask(session: Session, rfx_id: int, question: str, all_line_ids: list[str]) -
         "split_award": tools.split_award,
         "price_spread": tools.price_spread,
         "compare_last_year": tools.compare_last_year,
+        "past_orders": tools.past_orders,
+        "past_rfqs": tools.past_rfqs,
+        "certificates": tools.certificates,
         "run_sandbox": _run_sandbox,
     }
 

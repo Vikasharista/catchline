@@ -1,15 +1,39 @@
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
+from pathlib import Path
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
 from app.api.deps import get_session
 from app.models import AuditLog
 
 router = APIRouter(prefix="/api")
+
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+
+
+def _run_script(relative_path: str) -> None:
+    # subprocess.run doesn't set sys.path[0] to the repo root the way running
+    # the script directly from there does, so `from app... import ...` inside
+    # the script fails with ModuleNotFoundError unless PYTHONPATH is passed
+    # explicitly (bit us once already with scripts/score_extraction.py).
+    env = {**os.environ, "PYTHONPATH": str(REPO_ROOT)}
+    result = subprocess.run(
+        [sys.executable, relative_path],
+        cwd=REPO_ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise HTTPException(
+            502,
+            detail={"error": f"{relative_path} failed", "stderr": result.stderr[-2000:]},
+        )
 
 
 @router.get("/audit")
@@ -22,5 +46,12 @@ def audit_log(session: Session = Depends(get_session)):
 
 @router.post("/admin/reset")
 def reset_demo():
-    subprocess.run([sys.executable, "scripts/reset_demo.py"], check=True)
+    _run_script("scripts/reset_demo.py")
     return {"status": "reset"}
+
+
+@router.post("/admin/seed-history")
+def seed_history():
+    """Seeds synthetic past-PO/past-RFQ demo data — see scripts/seed_history.py."""
+    _run_script("scripts/seed_history.py")
+    return {"status": "seeded"}

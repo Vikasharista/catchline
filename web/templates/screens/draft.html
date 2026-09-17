@@ -9,8 +9,9 @@
              style="flex:1;height:36px;padding:0 10px;border:1px solid var(--cl-border);border-radius:8px;font-family:inherit;font-size:13px">
       <button class="btn btn-primary" id="chat-send">Send</button>
     </div>
-    <div style="margin-top:10px">
+    <div style="margin-top:10px;display:flex;gap:8px">
       <button class="btn btn-secondary" id="load-reference">Load reference RFx</button>
+      <button class="btn btn-secondary" id="seed-history">Seed sourcing history</button>
     </div>
   </div>
 
@@ -132,6 +133,14 @@ document.getElementById('load-reference').addEventListener('click', async () => 
     clearError();
     await safeFetch(`/api/rfx/${RFX_ID}/seed-reference`, { method: 'POST' });
     refreshDraft();
+  } catch (err) { showError(err); }
+});
+
+document.getElementById('seed-history').addEventListener('click', async () => {
+  try {
+    clearError();
+    await safeFetch(`/api/admin/seed-history`, { method: 'POST' });
+    alert('Sourcing history seeded — try asking the analyst about past orders or past RFQs.');
   } catch (err) { showError(err); }
 });
 

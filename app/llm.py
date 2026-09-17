@@ -165,7 +165,18 @@ def run_tool_loop(
             return result.text or "", transcript
 
         working_messages.append(
-            {"role": "assistant", "content": result.text, "tool_calls": result.tool_calls}
+            {
+                "role": "assistant",
+                "content": result.text,
+                "tool_calls": [
+                    {
+                        "id": call["id"],
+                        "type": "function",
+                        "function": {"name": call["name"], "arguments": json.dumps(call["arguments"])},
+                    }
+                    for call in result.tool_calls
+                ],
+            }
         )
 
         for call in result.tool_calls:

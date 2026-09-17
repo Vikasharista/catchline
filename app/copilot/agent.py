@@ -6,12 +6,19 @@ from __future__ import annotations
 from sqlmodel import Session
 
 from app.copilot.prompts import SYSTEM_PROMPT, TOOL_SCHEMAS
-from app.copilot.tools import CopilotTools
+from app.copilot.tools import CopilotTools, get_current_draft
+from app.knowledge.graph import build_entity_graph, is_in_scope
 from app.llm import run_tool_loop
 from app.models import ChatTurn
 
 PROMPT_VERSION = "v1"
 MAX_STEPS = 6
+
+OUT_OF_SCOPE_REPLY = (
+    "I can only help with drafting and discussing this RFx — scope, line "
+    "items, questionnaire, terms, suppliers, and Nordcap's sourcing history. "
+    "That's outside what I can help with here."
+)
 
 
 def _history(session: Session, rfx_id: int, limit: int = 20) -> list[dict]:
@@ -31,6 +38,16 @@ def chat(session: Session, rfx_id: int, buyer_message: str) -> dict:
     session.add(user_turn)
     session.commit()
     session.refresh(user_turn)
+
+    draft = get_current_draft(session, rfx_id)
+    graph = build_entity_graph(session, draft_lines=draft.get("lines", []))
+    in_scope, reason = is_in_scope(buyer_message, graph)
+    if not in_scope:
+        session.add(
+            ChatTurn(rfx_id=rfx_id, thread="copilot", role="assistant", content=OUT_OF_SCOPE_REPLY)
+        )
+        session.commit()
+        return {"text": OUT_OF_SCOPE_REPLY, "proposals": [], "questions": [], "refused_reason": reason}
 
     tools = CopilotTools(session, rfx_id, chat_turn_id=user_turn.id)
 

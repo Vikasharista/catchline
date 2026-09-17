@@ -11,15 +11,23 @@ native_unit, currency, incoterm.
 from __future__ import annotations
 
 import pandas as pd
+from sqlmodel import Session, select
 
 from app.normalize.reference import load_last_year_prices
 
 
 class AnalystTools:
-    def __init__(self, quotes: pd.DataFrame, all_line_ids: list[str], all_supplier_ids: list[str]):
+    def __init__(
+        self,
+        quotes: pd.DataFrame,
+        all_line_ids: list[str],
+        all_supplier_ids: list[str],
+        session: Session | None = None,
+    ):
         self.quotes = quotes
         self.all_line_ids = all_line_ids
         self.all_supplier_ids = all_supplier_ids
+        self.session = session
 
     def coverage(self) -> dict:
         counts = self.quotes.groupby("supplier_id")["line_id"].nunique().to_dict()
@@ -143,3 +151,84 @@ class AnalystTools:
                 }
             )
         return {"comparisons": rows, "lines_with_history": len(rows)}
+
+    def past_orders(self, supplier_name: str | None = None, species: str | None = None) -> dict:
+        """Historical purchase orders (PRD extension: "questions on ...
+        transactional data on past PO"). Source data is synthetic demo
+        fixture data (scripts/seed_history.py) — see that script's docstring.
+        """
+        from app.models import PurchaseOrder, Supplier
+
+        if self.session is None:
+            return {"orders": [], "note": "no DB session available"}
+
+        query = select(PurchaseOrder, Supplier).join(Supplier, PurchaseOrder.supplier_id == Supplier.id)
+        if supplier_name:
+            query = query.where(Supplier.name.ilike(f"%{supplier_name}%"))
+        if species:
+            query = query.where(PurchaseOrder.species.ilike(f"%{species}%"))
+
+        rows = self.session.exec(query).all()
+        orders = [
+            {
+                "po_number": po.po_number,
+                "supplier": supplier.name,
+                "species": po.species,
+                "form": po.form,
+                "grade": po.grade,
+                "quantity_kg": po.quantity_kg,
+                "price_eur_kg_net_dap": po.price_eur_kg_net_dap,
+                "order_date": po.order_date.isoformat(),
+                "status": po.status,
+            }
+            for po, supplier in rows
+        ]
+        return {"orders": orders, "count": len(orders)}
+
+    def past_rfqs(self) -> dict:
+        """Prior RFQ rounds (PRD extension). Synthetic demo fixture data —
+        see scripts/seed_history.py.
+        """
+        from app.models import PastRfxEvent, Supplier
+
+        if self.session is None:
+            return {"events": [], "note": "no DB session available"}
+
+        events = self.session.exec(select(PastRfxEvent)).all()
+        result = []
+        for e in events:
+            supplier = self.session.get(Supplier, e.awarded_supplier_id) if e.awarded_supplier_id else None
+            result.append(
+                {
+                    "rfx_number": e.rfx_number,
+                    "year": e.year,
+                    "awarded_supplier": supplier.name if supplier else None,
+                    "species": e.species_json,
+                    "total_spend_eur": e.total_spend_eur,
+                    "closed_date": e.closed_date.isoformat(),
+                }
+            )
+        return {"events": result, "count": len(result)}
+
+    def certificates(self, supplier_name: str | None = None) -> dict:
+        """Certificate records for suppliers — scheme, grade, validity."""
+        from app.models import Certificate, Supplier
+
+        if self.session is None:
+            return {"certificates": [], "note": "no DB session available"}
+
+        query = select(Certificate, Supplier).join(Supplier, Certificate.supplier_id == Supplier.id)
+        if supplier_name:
+            query = query.where(Supplier.name.ilike(f"%{supplier_name}%"))
+
+        rows = self.session.exec(query).all()
+        certs = [
+            {
+                "supplier": supplier.name,
+                "scheme": cert.scheme,
+                "grade": cert.grade,
+                "valid_until": cert.valid_until.isoformat() if cert.valid_until else None,
+            }
+            for cert, supplier in rows
+        ]
+        return {"certificates": certs, "count": len(certs)}

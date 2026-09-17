@@ -173,3 +173,37 @@ class AuditLog(SQLModel, table=True):
     before_json: Optional[dict] = Field(default=None, sa_column=Column(JSON))
     after_json: Optional[dict] = Field(default=None, sa_column=Column(JSON))
     reason: Optional[str] = None
+
+
+class PurchaseOrder(SQLModel, table=True):
+    """Historical PO record. SYNTHETIC DEMO DATA (scripts/seed_history.py) —
+    not derived from any real document. Answers "past PO" questions from the
+    analyst; never fed to an extraction or copilot prompt.
+    """
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    po_number: str
+    supplier_id: int = Field(foreign_key="supplier.id")
+    species: str
+    form: str
+    grade: str
+    quantity_kg: float
+    price_eur_kg_net_dap: float
+    order_date: datetime
+    delivery_date: Optional[datetime] = None
+    status: str = Field(default="delivered")  # delivered / cancelled / open
+
+
+class PastRfxEvent(SQLModel, table=True):
+    """A prior sourcing event (RFQ round), for "past RFQs" questions.
+    SYNTHETIC DEMO DATA (scripts/seed_history.py) — same caveat as PurchaseOrder.
+    """
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    rfx_number: str
+    year: int
+    awarded_supplier_id: Optional[int] = Field(default=None, foreign_key="supplier.id")
+    species_json: list = Field(sa_column=Column(JSON))
+    total_spend_eur: float
+    closed_date: datetime
+    notes: Optional[str] = None
