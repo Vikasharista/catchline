@@ -2,7 +2,7 @@ services:
   - type: web
     name: catchline
     runtime: docker
-    plan: starter
+    plan: free
     healthCheckPath: /api/health
     envVars:
       - key: LLM_MODEL
