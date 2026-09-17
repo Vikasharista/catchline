@@ -14,8 +14,13 @@ class Settings(BaseSettings):
 
     default_incoterm_place: str = "Boulogne"
 
+    # Read by litellm directly from the environment; declared here only so
+    # pydantic-settings doesn't reject it as an unknown .env key.
+    anthropic_api_key: str | None = None
+
     class Config:
         env_file = ".env"
+        extra = "ignore"
 
 
 settings = Settings()

@@ -42,7 +42,11 @@ def extract_pass_a(
         "json_schema": {"name": "DocumentExtraction", "schema": DocumentExtraction.model_json_schema()},
     }
 
-    for attempt in range(2):
+    document_has_content = bool(_document_text(doc).strip()) or bool(_document_images(doc))
+    max_attempts = 2
+    last_extraction: DocumentExtraction | None = None
+
+    for attempt in range(max_attempts):
         result = complete(
             messages,
             response_format=schema,
@@ -52,10 +56,21 @@ def extract_pass_a(
         )
         try:
             data = json.loads(result.text)
-            return DocumentExtraction.model_validate(data), False
+            extraction = DocumentExtraction.model_validate(data)
         except (json.JSONDecodeError, ValidationError):
             continue
 
+        # A syntactically valid but empty response on a document that clearly
+        # has content is suspicious (model non-determinism on a long table),
+        # not a legitimate "nothing to extract" — worth one retry before
+        # accepting it.
+        if not extraction.items and document_has_content and attempt < max_attempts - 1:
+            last_extraction = extraction
+            continue
+        return extraction, False
+
+    if last_extraction is not None:
+        return last_extraction, False
     return None, True
 
 
