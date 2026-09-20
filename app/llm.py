@@ -38,6 +38,29 @@ def _cache_path(cache_key: str) -> Path:
     return settings.llm_cache_dir / f"{digest}.json"
 
 
+# Client errors (bad request, auth, billing, not found) won't succeed on a
+# blind retry of the same request — only back off and retry on errors that
+# plausibly resolve themselves (rate limits, transient server/network
+# issues). Anything not recognized here is treated as retryable, since
+# failing to retry a genuinely transient error is worse than one wasted
+# retry on a genuinely permanent one.
+_NON_RETRYABLE_EXCEPTION_TYPES = tuple(
+    exc_type
+    for exc_type in (
+        getattr(litellm, "BadRequestError", None),
+        getattr(litellm, "AuthenticationError", None),
+        getattr(litellm, "PermissionDeniedError", None),
+        getattr(litellm, "NotFoundError", None),
+        getattr(litellm, "UnprocessableEntityError", None),
+    )
+    if exc_type is not None
+)
+
+
+def _is_retryable(exc: Exception) -> bool:
+    return not isinstance(exc, _NON_RETRYABLE_EXCEPTION_TYPES)
+
+
 def _log_call(model: str, messages: list[dict], latency_ms: float, cached: bool, prompt_version: str) -> None:
     entry = {
         "ts": time.time(),
@@ -136,6 +159,13 @@ def complete(
             except Exception as exc:  # noqa: BLE001 - genuinely want to retry any provider error
                 last_error = exc
                 logger.warning("LLM call failed (model=%s attempt=%s): %s", model, attempt, exc)
+                # A 4xx (bad request, auth, billing) won't fix itself on
+                # retry — burning the retry budget on it just delays
+                # falling back to the next model. Only back off and retry
+                # on errors that plausibly are transient (5xx, timeouts,
+                # rate limits).
+                if not _is_retryable(exc):
+                    break
                 if attempt < max_retries:
                     time.sleep(2**attempt)
         # move on to fallback model

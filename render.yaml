@@ -7,7 +7,11 @@ services:
     envVars:
       - key: LLM_MODEL
         value: anthropic/claude-sonnet-4-5
+      - key: LLM_FALLBACK
+        value: gemini/gemini-flash-lite-latest
       - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
         sync: false
       - key: DATABASE_URL
         value: sqlite:////app/data/db.sqlite3

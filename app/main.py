@@ -13,6 +13,7 @@ from app.api.comparison import router as comparison_router
 from app.api.inbox import router as inbox_router
 from app.api.review import router as review_router
 from app.api.rfx import router as rfx_router
+from app.bootstrap import seed_new_rfx
 from app.copilot.tools import get_current_draft, get_pending_proposals, get_section_states
 from app.db import engine, init_db
 from app.events import subscribe, unsubscribe
@@ -85,7 +86,11 @@ def latest_redirect(screen: str):
             s.add(rfx)
             s.commit()
             s.refresh(rfx)
-    return RedirectResponse(url=f"/rfx/{rfx.id}/{screen}")
+            seed_new_rfx(s, rfx.id)
+        rfx_id = rfx.id  # capture before the session closes — seed_new_rfx's
+        # commits expire rfx's attributes, and accessing them after the
+        # `with` block exits raises DetachedInstanceError.
+    return RedirectResponse(url=f"/rfx/{rfx_id}/{screen}")
 
 
 @app.get("/rfx/{rfx_id}/{screen}")

@@ -7,9 +7,9 @@ from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from app.api.deps import get_session
+from app.bootstrap import seed_new_rfx
 from app.copilot import service
 from app.copilot.agent import chat as copilot_chat
-from app.copilot.reference_draft import reference_draft_dict
 from app.copilot.tools import get_current_draft, get_pending_proposals, get_section_states
 from app.exports.rfq_pdf import build_rfq_pdf
 from app.exports.template_xlsx import build_template_xlsx
@@ -25,6 +25,7 @@ def create_rfx(session: Session = Depends(get_session)):
     session.add(rfx)
     session.commit()
     session.refresh(rfx)
+    seed_new_rfx(session, rfx.id)
     return {"id": rfx.id}
 
 
@@ -52,23 +53,13 @@ def list_rfx(session: Session = Depends(get_session)):
 
 @router.post("/rfx/{rfx_id}/seed-reference")
 def seed_reference(rfx_id: int, session: Session = Depends(get_session)):
-    rfx = session.get(Rfx, rfx_id)
-    if rfx is None:
+    """Kept for direct API use (tests, re-seeding an existing RFx) — new
+    RFx creation seeds automatically now, see app.bootstrap.seed_new_rfx.
+    """
+    try:
+        seed_new_rfx(session, rfx_id)
+    except ValueError:
         raise HTTPException(404, "rfx not found")
-
-    draft_dict = reference_draft_dict()
-    for supplier in draft_dict["suppliers"]:
-        exists = session.exec(
-            select(Supplier).where(Supplier.rfx_id == rfx_id, Supplier.name == supplier["name"])
-        ).first()
-        if not exists:
-            session.add(Supplier(rfx_id=rfx_id, name=supplier["name"], email=supplier.get("email")))
-    session.commit()
-
-    version = RfxVersion(rfx_id=rfx_id, version=1, draft_json=draft_dict, created_by="system", cause="seed")
-    session.add(version)
-    session.add(AuditLog(actor="system", action="reference_draft_seeded", entity=f"rfx:{rfx_id}"))
-    session.commit()
     return {"version": 1}
 
 

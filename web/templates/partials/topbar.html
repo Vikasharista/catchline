@@ -1,12 +1,8 @@
 <header class="topbar">
-  <div class="topbar-crumb" style="position:relative">
-    <span id="rfx-switcher-trigger" style="cursor:pointer;display:flex;align-items:center;gap:4px">
-      {{ rfx.rfx_number if rfx else 'No RFx' }}
-      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#8A8A8A" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
-    </span>
+  <div class="topbar-crumb">
+    <span>{{ rfx.rfx_number if rfx else 'No RFx' }}</span>
     <span class="sep">/</span>
     <span class="current">{{ crumb or active_step }}</span>
-    <div id="rfx-switcher-menu" style="display:none;position:absolute;top:28px;left:0;width:280px;background:#fff;border:1px solid var(--cl-border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.12);z-index:100;padding:6px"></div>
   </div>
   <div class="topbar-search" id="ask-anything">
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8A8A8A" stroke-width="1.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg>
@@ -20,50 +16,3 @@
   <button class="topbar-btn" id="activity-toggle">Activity</button>
   <div class="avatar">CL</div>
 </header>
-
-<script>
-(function () {
-  const trigger = document.getElementById('rfx-switcher-trigger');
-  const menu = document.getElementById('rfx-switcher-menu');
-  if (!trigger || !menu) return;
-
-  async function openMenu() {
-    let rfxs = [];
-    try {
-      const res = await fetch('/api/rfx');
-      rfxs = await res.json();
-    } catch (e) { /* ignore */ }
-
-    const currentId = {{ rfx_id|default('null') }};
-    const rows = rfxs.map(r => `
-      <a href="/rfx/${r.id}/draft" style="display:block;padding:8px 10px;border-radius:6px;text-decoration:none;color:var(--cl-text);font-size:12.5px;${r.id === currentId ? 'background:var(--cl-accent-bg)' : ''}">
-        <div style="font-weight:600">${r.title}</div>
-        <div style="color:var(--cl-text-muted);font-size:11px">${r.status} · ${r.line_count} line(s)</div>
-      </a>`).join('');
-
-    menu.innerHTML = `
-      <div style="max-height:280px;overflow:auto">${rows || '<div style="padding:8px;font-size:12px;color:var(--cl-text-faint)">No RFQs yet.</div>'}</div>
-      <div style="border-top:1px solid var(--cl-border);margin-top:6px;padding-top:6px">
-        <button id="start-new-rfq-btn" class="btn btn-primary" style="width:100%;height:32px;font-size:12px">+ Start new RFQ</button>
-      </div>`;
-    menu.style.display = 'block';
-
-    document.getElementById('start-new-rfq-btn').addEventListener('click', async () => {
-      const proceed = confirm('This RFQ\'s chat and draft are saved and stay accessible from this switcher. Start a new RFQ now?');
-      if (!proceed) return;
-      const res = await fetch('/api/rfx', { method: 'POST' });
-      const data = await res.json();
-      window.location.href = `/rfx/${data.id}/draft`;
-    });
-  }
-
-  trigger.addEventListener('click', (e) => {
-    e.stopPropagation();
-    if (menu.style.display === 'block') { menu.style.display = 'none'; return; }
-    openMenu();
-  });
-  document.addEventListener('click', (e) => {
-    if (!menu.contains(e.target) && e.target !== trigger) menu.style.display = 'none';
-  });
-})();
-</script>

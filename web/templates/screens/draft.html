@@ -9,11 +9,6 @@
              style="flex:1;height:36px;padding:0 10px;border:1px solid var(--cl-border);border-radius:8px;font-family:inherit;font-size:13px">
       <button class="btn btn-primary" id="chat-send">Send</button>
     </div>
-    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn btn-secondary" id="load-reference">Load reference RFx</button>
-      <button class="btn btn-secondary" id="seed-history">Seed sourcing history</button>
-    </div>
-
     <div id="shortlist-panel" style="margin-top:14px"></div>
   </div>
 
@@ -226,23 +221,6 @@ document.getElementById('chat-send').addEventListener('click', async () => {
     log.innerHTML += `<div style="color:var(--cl-red)"><strong>Co-pilot error:</strong> ${err.message}</div>`;
   }
   log.scrollTop = log.scrollHeight;
-});
-
-document.getElementById('load-reference').addEventListener('click', async () => {
-  try {
-    clearError();
-    await safeFetch(`/api/rfx/${RFX_ID}/seed-reference`, { method: 'POST' });
-    refreshDraft();
-  } catch (err) { showError(err); }
-});
-
-document.getElementById('seed-history').addEventListener('click', async () => {
-  try {
-    clearError();
-    await safeFetch(`/api/admin/seed-history`, { method: 'POST' });
-    alert('Sourcing history seeded — try asking the analyst about past orders or past RFQs.');
-    refreshShortlist();
-  } catch (err) { showError(err); }
 });
 
 // --- Pre-send review flow ---
