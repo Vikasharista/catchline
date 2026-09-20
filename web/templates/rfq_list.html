@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="display:flex;flex-direction:column;gap:16px">
+
+  <div class="card" style="padding:18px">
+    <h2 style="font-size:15px;margin-bottom:4px">Start a new RFQ</h2>
+    <p style="font-size:12px;color:var(--cl-text-muted);margin-bottom:12px">
+      Describe what you need and the co-pilot will draft it, or just create a blank RFQ and refine it by chat.
+    </p>
+    <div style="display:flex;gap:8px">
+      <input id="new-rfq-input" placeholder="e.g. Annual frozen salmon contract, delivered Boulogne, 60 t HOG 3-4 kg"
+             style="flex:1;height:36px;padding:0 10px;border:1px solid var(--cl-border);border-radius:8px;font-family:inherit;font-size:13px">
+      <button class="btn btn-primary" id="new-rfq-chat-btn">Start with chat</button>
+      <button class="btn btn-secondary" id="new-rfq-blank-btn">+ New RFQ</button>
+    </div>
+    <div id="new-rfq-error" style="display:none;margin-top:10px;background:var(--cl-red-bg);color:var(--cl-red);border-radius:8px;padding:8px 10px;font-size:12px"></div>
+  </div>
+
+  <div class="card" style="padding:0;overflow:hidden">
+    <div style="padding:14px 16px;border-bottom:1px solid var(--cl-border)">
+      <h2 style="font-size:15px">All RFQs</h2>
+    </div>
+    {% if rfqs %}
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead>
+        <tr style="text-align:left;color:var(--cl-text-faint);font-size:11px">
+          <th style="padding:10px 16px">RFQ</th>
+          <th style="padding:10px 16px">Status</th>
+          <th style="padding:10px 16px">Lines</th>
+          <th style="padding:10px 16px">Suppliers</th>
+          <th style="padding:10px 16px">Created</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rfqs %}
+        <tr class="rfq-row" data-href="/rfx/{{ r.id }}/draft" style="border-top:1px solid var(--cl-border);cursor:pointer">
+          <td style="padding:10px 16px">
+            <div style="font-weight:600">{{ r.title }}</div>
+            <div style="font-size:11px;color:var(--cl-text-faint)">RFX-{{ r.id }}</div>
+          </td>
+          <td style="padding:10px 16px">
+            <span class="badge {{ 'badge-success' if r.status == 'sent' else 'badge-amber' if r.status == 'closed' else 'badge-neutral' }}">{{ r.status }}</span>
+          </td>
+          <td style="padding:10px 16px">{{ r.line_count }}</td>
+          <td style="padding:10px 16px">{{ r.supplier_count }}</td>
+          <td style="padding:10px 16px;color:var(--cl-text-muted)">{{ r.created_at.strftime('%Y-%m-%d') if r.created_at else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div style="padding:24px 16px;font-size:13px;color:var(--cl-text-faint)">No RFQs yet — start one above.</div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+document.querySelectorAll('.rfq-row').forEach(row => {
+  row.addEventListener('click', () => { window.location.href = row.dataset.href; });
+});
+
+function showNewRfqError(msg) {
+  const el = document.getElementById('new-rfq-error');
+  el.textContent = `Couldn't create RFQ: ${msg}`;
+  el.style.display = 'block';
+}
+
+async function createRfqAndGo(message) {
+  document.getElementById('new-rfq-chat-btn').disabled = true;
+  document.getElementById('new-rfq-blank-btn').disabled = true;
+  try {
+    const res = await fetch('/api/rfx', { method: 'POST' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const { id } = await res.json();
+    if (message) {
+      const chatRes = await fetch(`/api/rfx/${id}/copilot/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message }),
+      });
+      if (!chatRes.ok) throw new Error(`HTTP ${chatRes.status}`);
+    }
+    window.location.href = `/rfx/${id}/draft`;
+  } catch (err) {
+    showNewRfqError(err.message);
+    document.getElementById('new-rfq-chat-btn').disabled = false;
+    document.getElementById('new-rfq-blank-btn').disabled = false;
+  }
+}
+
+document.getElementById('new-rfq-chat-btn').addEventListener('click', () => {
+  const message = document.getElementById('new-rfq-input').value.trim();
+  createRfqAndGo(message);
+});
+
+document.getElementById('new-rfq-blank-btn').addEventListener('click', () => {
+  createRfqAndGo(null);
+});
+</script>
+{% endblock %}

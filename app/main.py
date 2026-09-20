@@ -1,7 +1,7 @@
 import asyncio
 
 from fastapi import FastAPI, Request
-from fastapi.responses import RedirectResponse, StreamingResponse
+from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, select
@@ -13,7 +13,6 @@ from app.api.comparison import router as comparison_router
 from app.api.inbox import router as inbox_router
 from app.api.review import router as review_router
 from app.api.rfx import router as rfx_router
-from app.bootstrap import seed_new_rfx
 from app.copilot.tools import get_current_draft, get_pending_proposals, get_section_states
 from app.db import engine, init_db
 from app.events import subscribe, unsubscribe
@@ -27,7 +26,7 @@ for router in (rfx_router, inbox_router, review_router, comparison_router, analy
     app.include_router(router)
 
 NAV_STEPS = [
-    {"key": "draft", "label": "Draft", "href": "/rfx/{id}/draft"},
+    {"key": "draft", "label": "RFQ", "href": "/rfx/{id}/draft"},
     {"key": "inbox", "label": "Inbox", "href": "/rfx/{id}/inbox"},
     {"key": "review", "label": "Review", "href": "/rfx/{id}/review"},
     {"key": "compare", "label": "Compare", "href": "/rfx/{id}/compare"},
@@ -36,7 +35,7 @@ NAV_STEPS = [
 ]
 
 SCREEN_TITLES = {
-    "draft": "Draft the RFx with the co-pilot",
+    "draft": "Build the RFQ with the co-pilot",
     "inbox": "Supplier replies",
     "review": "Review queue",
     "compare": "Comparison grid",
@@ -73,24 +72,37 @@ def _step_index(key: str) -> int:
 
 
 @app.get("/")
-def root():
-    return RedirectResponse(url="/rfx/latest/draft")
-
-
-@app.get("/rfx/latest/{screen}")
-def latest_redirect(screen: str):
+def root(request: Request):
     with Session(engine) as s:
-        rfx = s.exec(select(Rfx).order_by(Rfx.id.desc())).first()
-        if rfx is None:
-            rfx = Rfx()
-            s.add(rfx)
-            s.commit()
-            s.refresh(rfx)
-            seed_new_rfx(s, rfx.id)
-        rfx_id = rfx.id  # capture before the session closes — seed_new_rfx's
-        # commits expire rfx's attributes, and accessing them after the
-        # `with` block exits raises DetachedInstanceError.
-    return RedirectResponse(url=f"/rfx/{rfx_id}/{screen}")
+        rows = s.exec(select(Rfx).order_by(Rfx.id.desc())).all()
+        rfqs = []
+        for rfx in rows:
+            draft = get_current_draft(s, rfx.id)
+            rfqs.append(
+                {
+                    "id": rfx.id,
+                    "status": rfx.status,
+                    "title": (draft.get("scope") or {}).get("title") or f"RFX-{rfx.id}",
+                    "line_count": len(draft.get("lines", [])),
+                    "supplier_count": len(s.exec(select(Supplier).where(Supplier.rfx_id == rfx.id)).all()),
+                    "created_at": rfx.created_at,
+                }
+            )
+
+    return templates.TemplateResponse(
+        "rfq_list.html",
+        {
+            "request": request,
+            "title": "RFQs",
+            "heading": "RFQs",
+            "active_step": None,
+            "crumb": "All RFQs",
+            "nav_steps": [],
+            "rfx": None,
+            "agents_working": 0,
+            "rfqs": rfqs,
+        },
+    )
 
 
 @app.get("/rfx/{rfx_id}/{screen}")
