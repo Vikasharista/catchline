@@ -3,7 +3,7 @@ uvicorn[standard]==0.30.6
 pydantic==2.9.2
 pydantic-settings==2.5.2
 sqlmodel==0.0.22
-litellm==1.74.9
+litellm==1.102.0
 python-multipart==0.0.9
 jinja2==3.1.4
 openpyxl==3.1.5
