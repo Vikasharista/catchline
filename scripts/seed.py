@@ -1,19 +1,14 @@
-"""Seeds demo suppliers for the RFx. Draft content (lines, questionnaire,
-terms) is seeded by the "Load reference RFx" flow described in PRD §7.2,
-built alongside the co-pilot schema in Day 1 PM / Day 2.
+"""Seeds a demo RFx: reference draft, the 5 demo suppliers, and synthetic
+PO/RFQ history — the same auto-seed a new RFx gets when created through the
+app (app.bootstrap.seed_new_rfx). Kept as a standalone script for scripts
+that want a demo RFx to exist without going through the UI/API (e.g.
+reset_demo.py).
 """
 from sqlmodel import Session, select
 
+from app.bootstrap import seed_new_rfx
 from app.db import engine, init_db
-from app.models import Rfx, Supplier
-
-SUPPLIERS = [
-    {"name": "Fjordline", "country": "Norway", "email": "sales@fjordline.example"},
-    {"name": "Pacific Rim", "country": "USA", "email": "offers@pacificrim.example"},
-    {"name": "Atlantico Pesca", "country": "Spain", "email": "ventas@atlanticopesca.example"},
-    {"name": "Oceanis", "country": "Netherlands", "email": "info@oceanis.example"},
-    {"name": "Baltic Blue", "country": "Poland", "email": "reply@balticblue.example"},
-]
+from app.models import Rfx
 
 
 def main() -> None:
@@ -25,13 +20,9 @@ def main() -> None:
             session.add(rfx)
             session.commit()
             session.refresh(rfx)
-
-        existing = {s.name for s in session.exec(select(Supplier).where(Supplier.rfx_id == rfx.id)).all()}
-        for sup in SUPPLIERS:
-            if sup["name"] not in existing:
-                session.add(Supplier(rfx_id=rfx.id, **sup))
-        session.commit()
-        print(f"Seeded RFx {rfx.id} with {len(SUPPLIERS)} suppliers.")
+        rfx_id = rfx.id
+        seed_new_rfx(session, rfx_id)
+        print(f"Seeded RFx {rfx_id}.")
 
 
 if __name__ == "__main__":
