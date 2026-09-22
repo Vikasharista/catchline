@@ -20,7 +20,7 @@
         <button class="btn btn-primary" id="review-send-btn">Review &amp; Send</button>
       </div>
     </div>
-    <div id="sections" style="display:flex;flex-direction:column;gap:10px;overflow:auto"></div>
+    <div id="sections" style="flex:1;min-height:0;display:flex;flex-direction:column;gap:10px;overflow:auto"></div>
   </div>
 </div>
 
@@ -98,7 +98,7 @@ function renderSectionDetail(key, draft) {
     const lines = draft.lines || [];
     if (!lines.length) return '<div style="font-size:12px;color:var(--cl-text-faint)">No lines yet.</div>';
     return `<table style="width:100%;font-size:11.5px;border-collapse:collapse">
-      <tr style="text-align:left;color:var(--cl-text-faint)"><th style="padding:4px">Line</th><th>Species</th><th>Form</th><th>Grade</th><th style="text-align:right">Vol (kg)</th></tr>
+      <tr style="text-align:left;color:var(--cl-text-faint)"><th style="padding:4px;position:sticky;top:0;background:#fff">Line</th><th style="position:sticky;top:0;background:#fff">Species</th><th style="position:sticky;top:0;background:#fff">Form</th><th style="position:sticky;top:0;background:#fff">Grade</th><th style="text-align:right;position:sticky;top:0;background:#fff">Vol (kg)</th></tr>
       ${lines.map(l => `<tr style="border-top:1px solid var(--cl-border)">
         <td style="padding:4px">${l.line_id}</td><td>${l.species}</td><td>${l.form}</td><td>${l.grade}</td>
         <td style="text-align:right">${(l.annual_volume_kg || 0).toLocaleString()}</td>
@@ -142,7 +142,7 @@ async function refreshDraft() {
     if (key === 'questionnaire') summary = `${(data.draft.questionnaire || []).length} question(s)`;
     if (key === 'terms') summary = data.draft.terms.payment_terms || 'not set';
     const isOpen = expandedSection === key;
-    return `<div style="border:1px solid var(--cl-border);border-radius:8px;overflow:hidden">
+    return `<div style="flex-shrink:0;border:1px solid var(--cl-border);border-radius:8px;overflow:hidden">
       <div style="padding:10px 12px;cursor:pointer" onclick="toggleSection('${key}')">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <strong style="font-size:13px;text-transform:capitalize">${key} <span style="color:var(--cl-text-faint);font-weight:400">${isOpen ? '▾' : '▸'}</span></strong>
@@ -150,7 +150,8 @@ async function refreshDraft() {
         </div>
         <div style="font-size:12px;color:var(--cl-text-muted);margin-top:4px">${summary}</div>
       </div>
-      ${isOpen ? `<div style="padding:0 12px 12px;border-top:1px solid var(--cl-border);padding-top:10px">${renderSectionDetail(key, data.draft)}
+      ${isOpen ? `<div style="padding:0 12px 12px;border-top:1px solid var(--cl-border);padding-top:10px">
+        <div style="max-height:360px;overflow:auto">${renderSectionDetail(key, data.draft)}</div>
         <div style="margin-top:10px"><button class="btn btn-secondary" style="height:26px;font-size:11px" onclick="event.stopPropagation();signOff('${key}')">Sign off</button></div>
       </div>` : ''}
     </div>`;
