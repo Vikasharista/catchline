@@ -13,7 +13,7 @@ from app.copilot.agent import chat as copilot_chat
 from app.copilot.tools import get_current_draft, get_pending_proposals, get_section_states
 from app.exports.rfq_pdf import build_rfq_pdf
 from app.exports.template_xlsx import build_template_xlsx
-from app.models import AuditLog, CopilotQuestion, Rfx, RfxVersion, SectionState, Supplier
+from app.models import AuditLog, ChangeProposal, ChatTurn, CopilotQuestion, Rfx, RfxVersion, SectionState, Supplier
 from app.schemas.draft import RfxDraft
 
 router = APIRouter(prefix="/api")
@@ -63,6 +63,20 @@ def seed_reference(rfx_id: int, session: Session = Depends(get_session)):
     return {"version": 1}
 
 
+def _serialize_proposal(p: ChangeProposal) -> dict:
+    return {
+        "id": p.id,
+        "section": p.section_key,
+        "op": p.op,
+        "target": p.target,
+        "value": (p.after_json or {}).get("value", p.after_json),
+        "reason": p.reason,
+        "origin": p.origin,
+        "risk": p.risk,
+        "status": p.status,
+    }
+
+
 @router.get("/rfx/{rfx_id}")
 def get_rfx(rfx_id: int, session: Session = Depends(get_session)):
     rfx = session.get(Rfx, rfx_id)
@@ -73,19 +87,7 @@ def get_rfx(rfx_id: int, session: Session = Depends(get_session)):
         "status": rfx.status,
         "draft": get_current_draft(session, rfx_id),
         "sections": get_section_states(session, rfx_id),
-        "pending_proposals": [
-            {
-                "id": p.id,
-                "section": p.section_key,
-                "op": p.op,
-                "target": p.target,
-                "value": (p.after_json or {}).get("value", p.after_json),
-                "reason": p.reason,
-                "origin": p.origin,
-                "risk": p.risk,
-            }
-            for p in get_pending_proposals(session, rfx_id)
-        ],
+        "pending_proposals": [_serialize_proposal(p) for p in get_pending_proposals(session, rfx_id)],
     }
 
 
@@ -93,12 +95,46 @@ class ChatMessage(BaseModel):
     message: str
 
 
+@router.get("/rfx/{rfx_id}/copilot/messages")
+def copilot_history(rfx_id: int, session: Session = Depends(get_session)):
+    """Chat history for the RFQ page's chat panel — was never fetched by the
+    frontend before, so a reload or navigating away silently lost the whole
+    conversation even though ChatTurn rows were there in the DB all along.
+    Proposals a turn produced are attached inline (looked up by the
+    preceding user turn's id, since that's what CopilotTools.chat_turn_id
+    is set to) so the buyer can see what was suggested and its current
+    accept/reject status without cross-referencing a separate list.
+    """
+    turns = session.exec(
+        select(ChatTurn).where(ChatTurn.rfx_id == rfx_id, ChatTurn.thread == "copilot").order_by(ChatTurn.created_at)
+    ).all()
+    messages = []
+    last_user_turn_id = None
+    for t in turns:
+        entry = {"id": t.id, "role": t.role, "content": t.content, "created_at": t.created_at, "proposals": []}
+        if t.role == "user":
+            last_user_turn_id = t.id
+        elif last_user_turn_id is not None:
+            proposals = session.exec(
+                select(ChangeProposal).where(ChangeProposal.chat_turn_id == last_user_turn_id)
+            ).all()
+            entry["proposals"] = [_serialize_proposal(p) for p in proposals]
+        messages.append(entry)
+    return messages
+
+
 @router.post("/rfx/{rfx_id}/copilot/messages")
 def copilot_message(rfx_id: int, body: ChatMessage, session: Session = Depends(get_session)):
     try:
-        return copilot_chat(session, rfx_id, body.message)
+        result = copilot_chat(session, rfx_id, body.message)
     except Exception as exc:  # noqa: BLE001 - surfaced as a friendly error card, not a 500
         raise HTTPException(502, detail={"error": "Co-pilot is unavailable", "message": str(exc), "retryable": True})
+    result["proposals"] = [
+        _serialize_proposal(p)
+        for pid in result["proposals"]
+        if (p := session.get(ChangeProposal, pid)) is not None
+    ]
+    return result
 
 
 @router.post("/proposals/{proposal_id}/accept")

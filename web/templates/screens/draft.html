@@ -3,7 +3,7 @@
 <div style="display:flex;gap:16px;height:100%">
   <div class="card" style="flex:2;display:flex;flex-direction:column;min-height:0">
     <h2 style="font-size:15px;margin-bottom:10px">Co-pilot chat</h2>
-    <div id="chat-log" style="flex:1;overflow:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:10px;font-size:13px"></div>
+    <div id="chat-log" style="flex:1;overflow:auto;display:flex;flex-direction:column;gap:12px;margin-bottom:10px"></div>
     <div style="display:flex;gap:8px">
       <input id="chat-input" placeholder="e.g. Annual frozen raw-material contract, delivered Boulogne, add salmon HOG 3-4 kg 60 t"
              style="flex:1;height:36px;padding:0 10px;border:1px solid var(--cl-border);border-radius:8px;font-family:inherit;font-size:13px">
@@ -21,7 +21,6 @@
       </div>
     </div>
     <div id="sections" style="display:flex;flex-direction:column;gap:10px;overflow:auto"></div>
-    <div id="pending-proposals" style="margin-top:14px;display:flex;flex-direction:column;gap:8px"></div>
   </div>
 </div>
 
@@ -67,6 +66,18 @@ function showError(err) {
 
 function clearError() {
   document.getElementById('error-banner').style.display = 'none';
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str == null ? '' : String(str);
+  return div.innerHTML;
+}
+
+function formatTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso.endsWith('Z') || iso.includes('+') ? iso : iso + 'Z');
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 function renderSectionDetail(key, draft) {
@@ -145,21 +156,6 @@ async function refreshDraft() {
     </div>`;
   }).join('');
 
-  const pendingEl = document.getElementById('pending-proposals');
-  pendingEl.innerHTML = data.pending_proposals.map(p => `
-    <div class="card" style="padding:10px 12px">
-      <div style="display:flex;justify-content:space-between">
-        <span class="badge ${p.origin === 'from_you' ? 'badge-success' : 'badge-amber'}">${p.origin === 'from_you' ? 'From you' : 'Suggested'}</span>
-        <span class="badge ${p.risk === 'money_or_eligibility' ? 'badge-red' : 'badge-neutral'}">${p.risk}</span>
-      </div>
-      <div style="font-size:12px;margin:6px 0">${p.section}.${p.target} → ${JSON.stringify(p.value)}</div>
-      <div style="font-size:11px;color:var(--cl-text-muted);margin-bottom:8px">${p.reason}</div>
-      <div style="display:flex;gap:6px">
-        <button class="btn btn-primary" style="height:26px;font-size:11px" onclick="decide(${p.id}, 'accept')">Accept</button>
-        <button class="btn btn-secondary" style="height:26px;font-size:11px" onclick="decide(${p.id}, 'reject')">Reject</button>
-      </div>
-    </div>`).join('') || '<div style="font-size:12px;color:var(--cl-text-faint)">No pending proposals.</div>';
-
   refreshShortlist();
 }
 
@@ -189,12 +185,19 @@ async function refreshShortlist() {
   }
 }
 
-async function decide(id, action) {
+async function decide(id, action, btn) {
+  const card = btn.closest('.chat-proposal');
+  const actionsEl = card.querySelector('.chat-proposal-actions');
+  actionsEl.querySelectorAll('button').forEach(b => b.disabled = true);
   try {
     clearError();
     await safeFetch(`/api/proposals/${id}/${action}`, { method: 'POST' });
+    actionsEl.outerHTML = proposalStatusBadge(action === 'accept' ? 'accepted' : 'rejected');
     refreshDraft();
-  } catch (err) { showError(err); }
+  } catch (err) {
+    actionsEl.querySelectorAll('button').forEach(b => b.disabled = false);
+    showError(err);
+  }
 }
 
 async function signOff(key) {
@@ -205,22 +208,120 @@ async function signOff(key) {
   } catch (err) { showError(err); }
 }
 
-document.getElementById('chat-send').addEventListener('click', async () => {
-  const input = document.getElementById('chat-input');
-  const message = input.value.trim();
+// --- Chat: history, bubbles, typing indicator, inline proposals ---
+
+function proposalStatusBadge(status) {
+  const map = {
+    accepted: ['badge-success', 'Accepted'],
+    edited: ['badge-success', 'Edited'],
+    rejected: ['badge-neutral', 'Rejected'],
+    failed: ['badge-red', 'Failed'],
+    pending: ['badge-amber', 'Pending'],
+  };
+  const [cls, label] = map[status] || map.pending;
+  return `<span class="badge ${cls}">${label}</span>`;
+}
+
+function renderProposalCard(p) {
+  return `<div class="chat-proposal">
+    <div class="chat-proposal-head">
+      <span class="badge ${p.origin === 'from_you' ? 'badge-success' : 'badge-amber'}">${p.origin === 'from_you' ? 'From you' : 'Suggested'}</span>
+      <span class="badge ${p.risk === 'money_or_eligibility' ? 'badge-red' : 'badge-neutral'}">${p.risk === 'money_or_eligibility' ? 'price/eligibility' : 'normal'}</span>
+    </div>
+    <div class="chat-proposal-body"><strong>${escapeHtml(p.section)}.${escapeHtml(p.target)}</strong> → ${escapeHtml(JSON.stringify(p.value))}</div>
+    <div class="chat-proposal-reason">${escapeHtml(p.reason)}</div>
+    ${p.status === 'pending'
+      ? `<div class="chat-proposal-actions">
+          <button class="btn btn-primary" style="height:26px;font-size:11px" onclick="decide(${p.id}, 'accept', this)">Accept</button>
+          <button class="btn btn-secondary" style="height:26px;font-size:11px" onclick="decide(${p.id}, 'reject', this)">Reject</button>
+        </div>`
+      : proposalStatusBadge(p.status)}
+  </div>`;
+}
+
+function renderMessage(m) {
+  const who = m.role === 'user' ? 'You' : 'Co-pilot';
+  const initials = m.role === 'user' ? 'Y' : 'CP';
+  const proposalsHtml = (m.proposals || []).map(renderProposalCard).join('');
+  return `<div class="chat-msg ${m.role}">
+    <div class="chat-avatar">${initials}</div>
+    <div class="chat-msg-col">
+      <div class="chat-bubble">${escapeHtml(m.content)}</div>
+      ${proposalsHtml}
+      <div class="chat-meta">${who}${m.created_at ? ' · ' + formatTime(m.created_at) : ''}</div>
+    </div>
+  </div>`;
+}
+
+function renderTypingIndicator() {
+  return `<div class="chat-msg assistant" id="chat-typing-row">
+    <div class="chat-avatar">CP</div>
+    <div class="chat-msg-col">
+      <div class="chat-bubble"><span class="chat-typing-dots"><span></span><span></span><span></span></span></div>
+    </div>
+  </div>`;
+}
+
+function scrollChatToBottom() {
+  const log = document.getElementById('chat-log');
+  log.scrollTop = log.scrollHeight;
+}
+
+async function loadChatHistory() {
+  const log = document.getElementById('chat-log');
+  try {
+    const messages = await safeFetch(`/api/rfx/${RFX_ID}/copilot/messages`);
+    if (!messages.length) {
+      log.innerHTML = '<div style="font-size:12px;color:var(--cl-text-faint);padding:8px 2px">No messages yet — tell the co-pilot what you need, e.g. "add salmon HOG 3-4 kg, 60 tonnes".</div>';
+      return;
+    }
+    log.innerHTML = messages.map(renderMessage).join('');
+    scrollChatToBottom();
+  } catch (err) {
+    log.innerHTML = '';
+    showError(err);
+  }
+}
+
+const chatInput = document.getElementById('chat-input');
+const chatSendBtn = document.getElementById('chat-send');
+
+async function sendChatMessage() {
+  const message = chatInput.value.trim();
   if (!message) return;
   const log = document.getElementById('chat-log');
-  log.innerHTML += `<div><strong>You:</strong> ${message}</div>`;
-  input.value = '';
+  if (log.querySelector('.chat-msg') === null) log.innerHTML = '';
+  log.insertAdjacentHTML('beforeend', renderMessage({ role: 'user', content: message, created_at: new Date().toISOString(), proposals: [] }));
+  log.insertAdjacentHTML('beforeend', renderTypingIndicator());
+  scrollChatToBottom();
+  chatInput.value = '';
+  chatInput.disabled = true;
+  chatSendBtn.disabled = true;
   try {
     clearError();
     const data = await safeFetch(`/api/rfx/${RFX_ID}/copilot/messages`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({message}) });
-    log.innerHTML += `<div><strong>Co-pilot:</strong> ${data.text}</div>`;
+    document.getElementById('chat-typing-row').remove();
+    log.insertAdjacentHTML('beforeend', renderMessage({ role: 'assistant', content: data.text, created_at: new Date().toISOString(), proposals: data.proposals || [] }));
     refreshDraft();
   } catch (err) {
-    log.innerHTML += `<div style="color:var(--cl-red)"><strong>Co-pilot error:</strong> ${err.message}</div>`;
+    document.getElementById('chat-typing-row').remove();
+    log.insertAdjacentHTML('beforeend', `<div class="chat-msg assistant chat-error">
+      <div class="chat-avatar">CP</div>
+      <div class="chat-msg-col"><div class="chat-bubble">Something went wrong: ${escapeHtml(err.message)}</div></div>
+    </div>`);
   }
-  log.scrollTop = log.scrollHeight;
+  chatInput.disabled = false;
+  chatSendBtn.disabled = false;
+  chatInput.focus();
+  scrollChatToBottom();
+}
+
+chatSendBtn.addEventListener('click', sendChatMessage);
+chatInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendChatMessage();
+  }
 });
 
 // --- Pre-send review flow ---
@@ -268,5 +369,6 @@ document.getElementById('send-modal-confirm').addEventListener('click', async ()
 });
 
 refreshDraft().catch(showError);
+loadChatHistory();
 </script>
 {% endblock %}

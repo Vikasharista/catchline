@@ -29,7 +29,19 @@ TOOL_SCHEMAS = [
                 "properties": {
                     "section": {"type": "string"},
                     "op": {"type": "string", "enum": ["add", "update", "remove"]},
-                    "target": {"type": "string"},
+                    "target": {
+                        "type": "string",
+                        "description": (
+                            "'add' on a list (lines/questionnaire/custom_sections): the bare list "
+                            "name, e.g. 'lines' — value is the whole new item as an object, and "
+                            "must include a new, unique id field (line_id for lines, q_id for "
+                            "questionnaire, key for custom_sections). 'update'/'remove' on a "
+                            "list item: 'lines[L01]' (index by line_id/q_id/key) — add "
+                            "'.field_name' after the ']' for update to change just one field, e.g. "
+                            "'lines[L01].annual_volume_kg'. A top-level dict section (scope/terms): "
+                            "a dotted path, e.g. 'scope.currency'."
+                        ),
+                    },
                     "value": {},
                     "reason": {"type": "string"},
                     "origin": {"type": "string", "enum": ["from_you", "suggested"]},
