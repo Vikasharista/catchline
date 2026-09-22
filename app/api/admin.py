@@ -9,9 +9,18 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
 from app.api.deps import get_session
+from app.config import settings
 from app.models import AuditLog
 
 router = APIRouter(prefix="/api")
+
+
+def _mask(key: str | None) -> dict:
+    if not key:
+        return {"set": False, "length": 0, "preview": None}
+    key = key.strip()
+    preview = f"{key[:6]}...{key[-4:]}" if len(key) > 10 else "***"
+    return {"set": True, "length": len(key), "preview": preview}
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
@@ -55,3 +64,24 @@ def seed_history():
     """Seeds synthetic past-PO/past-RFQ demo data — see scripts/seed_history.py."""
     _run_script("scripts/seed_history.py")
     return {"status": "seeded"}
+
+
+@router.get("/admin/llm-status")
+def llm_status():
+    """Diagnoses "Missing credentials" / wrong-model errors without ever
+    exposing a real key: what model config this exact running process
+    resolved (LLM_MODEL/LLM_FALLBACK), and whether each provider key is
+    present in its environment, its length, and a masked preview — enough
+    to catch "the var is set on the wrong Render service", "it's empty",
+    or "it got truncated when pasted" without guessing blind.
+    """
+    return {
+        "llm_model": settings.llm_model,
+        "llm_fallback": settings.llm_fallback,
+        "keys": {
+            "OPENAI_API_KEY": _mask(settings.openai_api_key),
+            "ANTHROPIC_API_KEY": _mask(settings.anthropic_api_key),
+            "GEMINI_API_KEY": _mask(settings.gemini_api_key),
+            "GROQ_API_KEY": _mask(settings.groq_api_key),
+        },
+    }
