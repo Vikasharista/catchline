@@ -89,7 +89,9 @@ def complete(
 
     - `cache_key`: if set and `live` is False, reuses a prior response for the
       same key (used by extraction: sha256(file) + prompt_version + model).
-    - Retries with backoff, then falls back to LLM_FALLBACK if configured.
+    - Retries with backoff, then falls back to LLM_FALLBACK if configured —
+      a comma-separated list to try in order (e.g. a second free provider in
+      case the first fallback is itself down), not just a single model.
     - `response_format` follows the OpenAI/LiteLLM json_schema shape for
       structured output.
     - `max_tokens` defaults well above litellm's provider default (4096):
@@ -113,7 +115,7 @@ def complete(
 
     models_to_try = [settings.llm_model]
     if settings.llm_fallback:
-        models_to_try.append(settings.llm_fallback)
+        models_to_try += [m.strip() for m in settings.llm_fallback.split(",") if m.strip()]
 
     last_error: Exception | None = None
     for model in models_to_try:

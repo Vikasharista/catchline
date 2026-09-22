@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     # pydantic-settings doesn't reject it as an unknown .env key.
     anthropic_api_key: str | None = None
     gemini_api_key: str | None = None
+    groq_api_key: str | None = None
 
     class Config:
         env_file = ".env"
