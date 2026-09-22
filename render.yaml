@@ -6,14 +6,10 @@ services:
     healthCheckPath: /api/health
     envVars:
       - key: LLM_MODEL
-        value: anthropic/claude-sonnet-4-5
+        value: openai/gpt-4o
       - key: LLM_FALLBACK
-        value: gemini/gemini-flash-lite-latest,groq/llama-3.3-70b-versatile
-      - key: ANTHROPIC_API_KEY
-        sync: false
-      - key: GEMINI_API_KEY
-        sync: false
-      - key: GROQ_API_KEY
+        value: openai/gpt-4o-mini
+      - key: OPENAI_API_KEY
         sync: false
       - key: DATABASE_URL
         value: sqlite:////app/data/db.sqlite3

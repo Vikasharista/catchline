@@ -4,8 +4,8 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    llm_model: str = "anthropic/claude-sonnet-4-5"
-    llm_fallback: str | None = None
+    llm_model: str = "openai/gpt-4o"
+    llm_fallback: str | None = "openai/gpt-4o-mini"
     llm_temperature: float = 0.0
 
     database_url: str = "sqlite:///./data/db.sqlite3"
@@ -16,6 +16,7 @@ class Settings(BaseSettings):
 
     # Read by litellm directly from the environment; declared here only so
     # pydantic-settings doesn't reject it as an unknown .env key.
+    openai_api_key: str | None = None
     anthropic_api_key: str | None = None
     gemini_api_key: str | None = None
     groq_api_key: str | None = None
