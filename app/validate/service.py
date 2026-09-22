@@ -159,18 +159,27 @@ def suggest_vendors_from_history(session: Session, rfx_id: int) -> dict[str, lis
     """Pre-send shortlist: for each line in the draft, which of Nordcap's
     known suppliers have historically supplied that species, from
     scripts/seed_history.py's synthetic PurchaseOrder records.
+
+    Matches on (species, form) first — species alone can't tell apart, say,
+    salmon HOG 3-4kg from salmon fillet trim, so every line of the same
+    species used to get an identical supplier/price suggestion even though
+    they're different products. Falls back to species-only when nothing
+    matches that exact form, so a line still gets a suggestion rather than
+    none at all.
     """
     draft = RfxDraft.model_validate(get_current_draft(session, rfx_id))
     suppliers = {s.id: s for s in session.exec(select(Supplier).where(Supplier.rfx_id == rfx_id)).all()}
     all_pos = session.exec(select(PurchaseOrder).where(PurchaseOrder.supplier_id.in_(suppliers.keys()))).all()
 
     by_species: dict[str, list[PurchaseOrder]] = {}
+    by_species_form: dict[tuple[str, str], list[PurchaseOrder]] = {}
     for po in all_pos:
         by_species.setdefault(po.species.lower(), []).append(po)
+        by_species_form.setdefault((po.species.lower(), po.form.lower()), []).append(po)
 
     result: dict[str, list[dict]] = {}
     for line in draft.lines:
-        pos = by_species.get(line.species.lower(), [])
+        pos = by_species_form.get((line.species.lower(), line.form.lower()), []) or by_species.get(line.species.lower(), [])
         by_supplier: dict[int, list[PurchaseOrder]] = {}
         for po in pos:
             by_supplier.setdefault(po.supplier_id, []).append(po)

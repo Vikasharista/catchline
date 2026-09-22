@@ -51,6 +51,7 @@ SUPPLIER_SPECIES = {
     ],
     "Baltic Blue Foods Sp. z o.o.": [
         ("Atlantic salmon (farmed)", "HOG, frozen", "2-3 kg", 6.0, 7.5),
+        ("Atlantic salmon (farmed)", "Fillet trim D, skin-on", "1-2 kg", 9.5, 11.5),
         ("Atlantic cod (wild)", "Fillet skinless boneless, IQF", "200-400 g", 8.5, 10.0),
     ],
 }

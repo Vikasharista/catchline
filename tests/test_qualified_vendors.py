@@ -97,3 +97,95 @@ def test_suggest_vendors_from_history(session):
     assert "L01" in suggestions
     assert suggestions["L01"][0]["supplier_id"] == sup1_id
     assert suggestions["L01"][0]["past_orders"] == 1
+
+
+DRAFT_TWO_FORMS = RfxDraft(
+    lines=[
+        {
+            "line_id": "L01",
+            "species": "Atlantic salmon (farmed)",
+            "form": "HOG, frozen",
+            "grade": "3-4 kg",
+            "annual_volume_kg": 1000,
+        },
+        {
+            "line_id": "L02",
+            "species": "Atlantic salmon (farmed)",
+            "form": "Fillet trim D, skin-on",
+            "grade": "1-2 kg",
+            "annual_volume_kg": 1000,
+        },
+        {
+            "line_id": "L03",
+            "species": "Atlantic salmon (farmed)",
+            "form": "Loins, portioned",  # no PO has this exact form
+            "grade": "150-200 g",
+            "annual_volume_kg": 1000,
+        },
+    ]
+)
+
+
+@pytest.fixture
+def two_forms_session():
+    """Regression fixture for a real bug: matching on species alone gave
+    every line of the same species an identical supplier/price suggestion,
+    even when the lines were obviously different products (HOG vs fillet).
+    """
+    engine = create_engine("sqlite://", connect_args={"check_same_thread": False})
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as s:
+        rfx = Rfx()
+        s.add(rfx)
+        s.commit()
+        s.refresh(rfx)
+        s.add(RfxVersion(rfx_id=rfx.id, version=1, draft_json=DRAFT_TWO_FORMS.model_dump(), created_by="t", cause="seed"))
+
+        supplier = Supplier(rfx_id=rfx.id, name="Baltic Blue Foods Sp. z o.o.")
+        s.add(supplier)
+        s.commit()
+        s.refresh(supplier)
+
+        s.add(
+            PurchaseOrder(
+                po_number="PO-1",
+                supplier_id=supplier.id,
+                species="Atlantic salmon (farmed)",
+                form="HOG, frozen",
+                grade="2-3 kg",
+                quantity_kg=20000,
+                price_eur_kg_net_dap=7.0,
+                order_date=datetime(2024, 1, 1),
+            )
+        )
+        s.add(
+            PurchaseOrder(
+                po_number="PO-2",
+                supplier_id=supplier.id,
+                species="Atlantic salmon (farmed)",
+                form="Fillet trim D, skin-on",
+                grade="1-2 kg",
+                quantity_kg=10000,
+                price_eur_kg_net_dap=10.5,
+                order_date=datetime(2024, 2, 1),
+            )
+        )
+        s.commit()
+
+        yield s, rfx.id, supplier.id
+
+
+def test_lines_with_different_forms_get_different_prices(two_forms_session):
+    s, rfx_id, supplier_id = two_forms_session
+    suggestions = suggest_vendors_from_history(s, rfx_id)
+    assert suggestions["L01"][0]["avg_price_eur_kg_net_dap"] == 7.0
+    assert suggestions["L02"][0]["avg_price_eur_kg_net_dap"] == 10.5
+
+
+def test_line_with_no_exact_form_match_falls_back_to_species_only(two_forms_session):
+    s, rfx_id, supplier_id = two_forms_session
+    suggestions = suggest_vendors_from_history(s, rfx_id)
+    # L03's form ("Loins, portioned") matches no PO, so it should still get
+    # a suggestion (blending both POs) rather than none at all.
+    assert "L03" in suggestions
+    assert suggestions["L03"][0]["past_orders"] == 2
