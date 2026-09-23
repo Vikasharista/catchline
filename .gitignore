@@ -8,6 +8,7 @@ data/inbox/
 data/outbox/
 data/cache/
 data/llm_calls.jsonl
+data/llm_budget.json
 *.log
 .DS_Store
 .pytest_cache/

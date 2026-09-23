@@ -10,6 +10,7 @@ from sqlmodel import Session, select
 
 from app.api.deps import get_session
 from app.config import settings
+from app.llm import get_budget_status
 from app.models import AuditLog
 
 router = APIRouter(prefix="/api")
@@ -73,7 +74,10 @@ def llm_status():
     resolved (LLM_MODEL/LLM_FALLBACK), and whether each provider key is
     present in its environment, its length, and a masked preview — enough
     to catch "the var is set on the wrong Render service", "it's empty",
-    or "it got truncated when pasted" without guessing blind.
+    or "it got truncated when pasted" without guessing blind. Also surfaces
+    today's tracked spend against LLM_DAILY_BUDGET_USD so the credit-usage
+    guardrails are visible without digging through the provider's own
+    dashboard.
     """
     return {
         "llm_model": settings.llm_model,
@@ -83,5 +87,10 @@ def llm_status():
             "ANTHROPIC_API_KEY": _mask(settings.anthropic_api_key),
             "GEMINI_API_KEY": _mask(settings.gemini_api_key),
             "GROQ_API_KEY": _mask(settings.groq_api_key),
+        },
+        "budget": get_budget_status(),
+        "chat_rate_limit": {
+            "count": settings.llm_chat_rate_limit_count,
+            "window_seconds": settings.llm_chat_rate_limit_window_s,
         },
     }

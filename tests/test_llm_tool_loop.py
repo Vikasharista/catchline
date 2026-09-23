@@ -7,6 +7,7 @@ manual live testing; see app/llm.py history.
 """
 import json
 
+from app.config import settings
 from app.llm import LLMResult, run_tool_loop
 
 
@@ -42,3 +43,33 @@ def test_reconstructed_assistant_message_has_openai_tool_call_shape(monkeypatch)
 
     tool_msg = next(m for m in second_call_messages if m["role"] == "tool")
     assert tool_msg["tool_call_id"] == "call_1"
+
+
+def test_uses_chat_scoped_max_tokens_by_default(monkeypatch):
+    """Chat replies are short; run_tool_loop shouldn't use complete()'s
+    8192 default sized for structured-extraction documents."""
+    seen_max_tokens = []
+
+    def fake_complete(messages, *, tools=None, prompt_version="v1", max_tokens=None, **kwargs):
+        seen_max_tokens.append(max_tokens)
+        return LLMResult(text="done", tool_calls=[])
+
+    monkeypatch.setattr("app.llm.complete", fake_complete)
+
+    run_tool_loop([{"role": "user", "content": "hi"}], tools=[], tool_impls={})
+
+    assert seen_max_tokens == [settings.llm_chat_max_tokens]
+
+
+def test_explicit_max_tokens_overrides_the_default(monkeypatch):
+    seen_max_tokens = []
+
+    def fake_complete(messages, *, tools=None, prompt_version="v1", max_tokens=None, **kwargs):
+        seen_max_tokens.append(max_tokens)
+        return LLMResult(text="done", tool_calls=[])
+
+    monkeypatch.setattr("app.llm.complete", fake_complete)
+
+    run_tool_loop([{"role": "user", "content": "hi"}], tools=[], tool_impls={}, max_tokens=42)
+
+    assert seen_max_tokens == [42]

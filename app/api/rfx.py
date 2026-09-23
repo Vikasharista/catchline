@@ -13,7 +13,9 @@ from app.copilot.agent import chat as copilot_chat
 from app.copilot.tools import get_current_draft, get_pending_proposals, get_section_states
 from app.exports.rfq_pdf import build_rfq_pdf
 from app.exports.template_xlsx import build_template_xlsx
+from app.llm import BudgetExceededError
 from app.models import AuditLog, ChangeProposal, ChatTurn, CopilotQuestion, Rfx, RfxVersion, SectionState, Supplier
+from app.rate_limit import RateLimitExceededError, check_rate_limit
 from app.schemas.draft import RfxDraft
 
 router = APIRouter(prefix="/api")
@@ -126,7 +128,13 @@ def copilot_history(rfx_id: int, session: Session = Depends(get_session)):
 @router.post("/rfx/{rfx_id}/copilot/messages")
 def copilot_message(rfx_id: int, body: ChatMessage, session: Session = Depends(get_session)):
     try:
+        check_rate_limit(f"copilot:{rfx_id}")
+    except RateLimitExceededError as exc:
+        raise HTTPException(429, detail={"error": "Rate limited", "message": str(exc), "retryable": True})
+    try:
         result = copilot_chat(session, rfx_id, body.message)
+    except BudgetExceededError as exc:
+        raise HTTPException(402, detail={"error": "Daily LLM budget reached", "message": str(exc), "retryable": False})
     except Exception as exc:  # noqa: BLE001 - surfaced as a friendly error card, not a 500
         raise HTTPException(502, detail={"error": "Co-pilot is unavailable", "message": str(exc), "retryable": True})
     result["proposals"] = [
