@@ -8,10 +8,8 @@ services:
       - key: LLM_MODEL
         value: anthropic/claude-sonnet-4-5
       - key: LLM_FALLBACK
-        value: openai/gpt-4o-mini
+        value: ""
       - key: ANTHROPIC_API_KEY
-        sync: false
-      - key: OPENAI_API_KEY
         sync: false
       - key: LLM_DAILY_BUDGET_USD
         value: "3.0"

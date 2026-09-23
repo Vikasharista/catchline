@@ -211,6 +211,16 @@ def complete(
 
     last_error: Exception | None = None
     for model in models_to_try:
+        # Anthropic's structured-output (response_format) path rejects this
+        # app's extraction schemas outright with a bare "Schema is too
+        # complex" — caught live once Claude had credits again and was
+        # actually exercised end-to-end for extraction for the first time.
+        # Its tool-use path (already proven solid for the co-pilot/analyst)
+        # tolerates the same schemas fine, so for an Anthropic model a
+        # response_format is shimmed as a single forced tool call instead;
+        # other providers keep using response_format as before.
+        use_tool_shim = bool(response_format) and model.startswith("anthropic/")
+
         for attempt in range(max_retries + 1):
             try:
                 start = time.time()
@@ -220,16 +230,29 @@ def complete(
                     temperature=settings.llm_temperature,
                     max_tokens=max_tokens,
                 )
-                if tools:
+                if use_tool_shim:
+                    schema_name = response_format["json_schema"]["name"]
+                    schema_body = response_format["json_schema"]["schema"]
+                    kwargs["tools"] = [
+                        {
+                            "type": "function",
+                            "function": {
+                                "name": schema_name,
+                                "description": f"Return the result as {schema_name}.",
+                                "parameters": schema_body,
+                            },
+                        }
+                    ]
+                    kwargs["tool_choice"] = {"type": "function", "function": {"name": schema_name}}
+                elif tools:
                     kwargs["tools"] = tools
-                if response_format:
+                elif response_format:
                     kwargs["response_format"] = response_format
 
                 response = litellm.completion(**kwargs)
                 latency_ms = (time.time() - start) * 1000
 
                 choice = response.choices[0]
-                text = choice.message.content
                 tool_calls = []
                 if getattr(choice.message, "tool_calls", None):
                     for tc in choice.message.tool_calls:
@@ -240,6 +263,14 @@ def complete(
                                 "arguments": json.loads(tc.function.arguments or "{}"),
                             }
                         )
+
+                if use_tool_shim:
+                    if not tool_calls:
+                        raise RuntimeError("Anthropic tool-shim call returned no tool call to parse a result from")
+                    text = json.dumps(tool_calls[0]["arguments"])
+                    tool_calls = []  # this was a response_format shim, not a real tool call for the caller
+                else:
+                    text = choice.message.content
 
                 _log_call(model, messages, latency_ms, cached=False, prompt_version=prompt_version)
                 _record_spend(model, getattr(response, "usage", None))

@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     llm_model: str = "anthropic/claude-sonnet-4-5"
-    llm_fallback: str | None = "openai/gpt-4o-mini"
+    llm_fallback: str | None = None
     llm_temperature: float = 0.0
 
     # Credit-wastage guardrails (app/llm.py, app/rate_limit.py). Budget is
