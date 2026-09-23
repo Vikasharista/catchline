@@ -192,8 +192,17 @@ async function decide(id, action, btn) {
   actionsEl.querySelectorAll('button').forEach(b => b.disabled = true);
   try {
     clearError();
-    await safeFetch(`/api/proposals/${id}/${action}`, { method: 'POST' });
-    actionsEl.outerHTML = proposalStatusBadge(action === 'accept' ? 'accepted' : 'rejected');
+    const data = await safeFetch(`/api/proposals/${id}/${action}`, { method: 'POST' });
+    // The endpoint returns 200 even when the apply itself failed (e.g. the
+    // proposed value didn't match the draft schema) — status/error in the
+    // body is the real outcome, not the HTTP status, so check it rather
+    // than assuming success just because the request didn't throw.
+    if (data.status === 'failed') {
+      actionsEl.outerHTML = proposalStatusBadge('failed');
+      showError(new Error(data.error || 'The draft rejected this change.'));
+    } else {
+      actionsEl.outerHTML = proposalStatusBadge(action === 'accept' ? 'accepted' : 'rejected');
+    }
     refreshDraft();
   } catch (err) {
     actionsEl.querySelectorAll('button').forEach(b => b.disabled = false);

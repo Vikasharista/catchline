@@ -61,7 +61,32 @@ TOOL_SCHEMAS = [
                             "a dotted path, e.g. 'scope.currency'."
                         ),
                     },
-                    "value": {},
+                    "value": {
+                        "description": (
+                            "Field names must match the draft schema exactly — an unrecognized "
+                            "field name is silently dropped and a missing required one fails "
+                            "validation when the buyer accepts (they see a generic error, not what "
+                            "field was wrong), so get this right rather than guessing.\n"
+                            "- lines item: {line_id, species, form, grade, spec_notes (optional), "
+                            "unit (default 'kg'), annual_volume_kg, custom_fields (optional object)}.\n"
+                            "- questionnaire item: {q_id, group: one of "
+                            "certifications|quality|traceability|commercial, text, answer_type: one "
+                            "of yes_no|text|date|file, pass_rule (optional {scope, condition})}. Not "
+                            "'question'/'category'/'required' — those field names don't exist on "
+                            "this schema.\n"
+                            "- custom_sections item: {key, title, body_md, "
+                            "requires_supplier_response}.\n"
+                            "- scope.* update: value is just the new field's value (a string/etc, "
+                            "not an object) — fields are title, category, buyer_site, "
+                            "contract_start, contract_end, incoterm, incoterm_place, currency, "
+                            "weight_basis, response_deadline, award_date.\n"
+                            "- terms.* update: value is the new field's value — fields are "
+                            "payment_terms, glaze_cap_pct, quote_validity_days, "
+                            "partial_quotes_allowed, eval_weights ({price, quality, commercial}, "
+                            "each 0-100 summing to 100), award_rules (list of {type, value, "
+                            "schemes, codes, applies_to})."
+                        )
+                    },
                     "reason": {"type": "string"},
                     "origin": {"type": "string", "enum": ["from_you", "suggested"]},
                 },
