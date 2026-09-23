@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from app.api.deps import get_session
-from app.bootstrap import seed_new_rfx
+from app.bootstrap import seed_new_rfx, seed_reference_draft
 from app.copilot import service
 from app.copilot.agent import chat as copilot_chat
 from app.copilot.tools import get_current_draft, get_pending_proposals, get_section_states
@@ -55,11 +55,13 @@ def list_rfx(session: Session = Depends(get_session)):
 
 @router.post("/rfx/{rfx_id}/seed-reference")
 def seed_reference(rfx_id: int, session: Session = Depends(get_session)):
-    """Kept for direct API use (tests, re-seeding an existing RFx) — new
-    RFx creation seeds automatically now, see app.bootstrap.seed_new_rfx.
+    """Loads the full 30-line reference RFQ onto an RFx that doesn't have
+    real lines yet — new RFx creation only seeds a blank draft + greeting
+    now (see app.bootstrap.seed_new_rfx), so this is how tests and the
+    "Seed & extract all" demo shortcut get a populated draft on demand.
     """
     try:
-        seed_new_rfx(session, rfx_id)
+        seed_reference_draft(session, rfx_id)
     except ValueError:
         raise HTTPException(404, "rfx not found")
     return {"version": 1}

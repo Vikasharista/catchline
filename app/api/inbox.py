@@ -169,7 +169,15 @@ def seed_and_extract_all(rfx_id: int, live: bool = False, session: Session = Dep
     real data without clicking Extract nine times. Each document still goes
     through a real LLM call (or its cache) — nothing here is fabricated,
     it's just fewer clicks. One document's failure doesn't stop the rest.
+
+    A new RFx starts with a blank draft now (co-pilot builds it up through
+    chat), but supplier replies need to match against a real line list —
+    so this loads the reference draft first if the buyer hasn't drafted
+    real lines yet themselves (a no-op once they have).
     """
+    from app.bootstrap import seed_reference_draft
+
+    seed_reference_draft(session, rfx_id)
     simulate_result = simulate_inbox(rfx_id, session)
 
     extracted, failed = [], []

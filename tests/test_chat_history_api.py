@@ -43,9 +43,15 @@ def client(monkeypatch):
     app.dependency_overrides.clear()
 
 
-def test_history_is_empty_for_a_fresh_rfx(client):
+def test_history_has_only_the_greeting_for_a_fresh_rfx(client):
+    """A new RFx starts with a blank draft + a canned greeting (not an LLM
+    call) asking about scope, so the buyer sees the co-pilot prompting
+    them instead of a silent empty chat."""
     rfx_id = client.post("/api/rfx").json()["id"]
-    assert client.get(f"/api/rfx/{rfx_id}/copilot/messages").json() == []
+    history = client.get(f"/api/rfx/{rfx_id}/copilot/messages").json()
+    assert len(history) == 1
+    assert history[0]["role"] == "assistant"
+    assert "scope" in history[0]["content"].lower()
 
 
 def test_sent_message_is_persisted_and_reloadable(client):
@@ -53,9 +59,9 @@ def test_sent_message_is_persisted_and_reloadable(client):
     client.post(f"/api/rfx/{rfx_id}/copilot/messages", json={"message": "Add cod, 1000kg"})
 
     history = client.get(f"/api/rfx/{rfx_id}/copilot/messages").json()
-    assert [m["role"] for m in history] == ["user", "assistant"]
-    assert history[0]["content"] == "Add cod, 1000kg"
-    assert history[1]["content"] == "I've suggested 1 change."
+    assert [m["role"] for m in history] == ["assistant", "user", "assistant"]
+    assert history[1]["content"] == "Add cod, 1000kg"
+    assert history[2]["content"] == "I've suggested 1 change."
 
 
 def test_proposal_is_attached_to_the_assistant_turn_that_created_it(client):
@@ -63,9 +69,9 @@ def test_proposal_is_attached_to_the_assistant_turn_that_created_it(client):
     client.post(f"/api/rfx/{rfx_id}/copilot/messages", json={"message": "Add cod, 1000kg"})
 
     history = client.get(f"/api/rfx/{rfx_id}/copilot/messages").json()
-    assert history[0]["proposals"] == []
-    assert len(history[1]["proposals"]) == 1
-    proposal = history[1]["proposals"][0]
+    assert history[1]["proposals"] == []
+    assert len(history[2]["proposals"]) == 1
+    proposal = history[2]["proposals"][0]
     assert proposal["target"] == "lines"
     assert proposal["status"] == "pending"
 
@@ -86,4 +92,4 @@ def test_history_reflects_proposal_status_after_accept(client):
     client.post(f"/api/proposals/{proposal_id}/accept")
 
     history = client.get(f"/api/rfx/{rfx_id}/copilot/messages").json()
-    assert history[1]["proposals"][0]["status"] == "accepted"
+    assert history[2]["proposals"][0]["status"] == "accepted"
