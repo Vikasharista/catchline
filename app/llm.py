@@ -348,7 +348,17 @@ def run_tool_loop(
             if fn is None:
                 tool_result = {"error": f"unknown tool {call['name']}"}
             else:
-                tool_result = fn(**call["arguments"])
+                try:
+                    tool_result = fn(**call["arguments"])
+                except (TypeError, ValueError, KeyError) as exc:
+                    # A malformed call (missing/unexpected argument, wrong
+                    # type) used to propagate as a raw Python exception that
+                    # killed the whole request and showed the buyer a
+                    # traceback-like message (e.g. "propose_change() missing
+                    # 4 required positional arguments"). Feed it back as a
+                    # tool error instead, so the model can see what it got
+                    # wrong and retry with a corrected call.
+                    tool_result = {"error": f"invalid arguments for {call['name']}: {exc}"}
             transcript.append({"tool": call["name"], "arguments": call["arguments"], "result": tool_result})
             working_messages.append(
                 {

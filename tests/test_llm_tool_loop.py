@@ -61,6 +61,42 @@ def test_uses_chat_scoped_max_tokens_by_default(monkeypatch):
     assert seen_max_tokens == [settings.llm_chat_max_tokens]
 
 
+def test_malformed_tool_call_feeds_back_error_instead_of_crashing(monkeypatch):
+    """Regression test: a real 502 was hit live when the model called
+    propose_change with some required arguments missing (e.g. no `target`),
+    which propagated as a raw TypeError ("propose_change() missing 4
+    required positional arguments...") all the way out of run_tool_loop,
+    killing the request and showing the buyer a Python-error-shaped
+    message. The tool call should instead get a tool-result error it (or
+    the model) can act on, and the loop should keep going.
+    """
+    calls = []
+
+    def fake_complete(messages, *, tools=None, prompt_version="v1", **kwargs):
+        calls.append(None)
+        if len(calls) == 1:
+            return LLMResult(
+                text=None, tool_calls=[{"id": "call_1", "name": "propose_change", "arguments": {"section": "lines"}}]
+            )
+        return LLMResult(text="done", tool_calls=[])
+
+    monkeypatch.setattr("app.llm.complete", fake_complete)
+
+    def propose_change(section, op, target, value, reason, origin):
+        raise AssertionError("should never be called with missing arguments")
+
+    text, transcript = run_tool_loop(
+        [{"role": "user", "content": "hi"}],
+        tools=[{"type": "function", "function": {"name": "propose_change", "parameters": {}}}],
+        tool_impls={"propose_change": propose_change},
+    )
+
+    assert text == "done"
+    assert len(transcript) == 1
+    assert "error" in transcript[0]["result"]
+    assert "propose_change" in transcript[0]["result"]["error"]
+
+
 def test_explicit_max_tokens_overrides_the_default(monkeypatch):
     seen_max_tokens = []
 
