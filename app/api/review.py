@@ -61,25 +61,33 @@ def resolve_flag(flag_id: int, body: ResolveBody, session: Session = Depends(get
         else None
     )
 
-    if body.action == "accept" and quote:
-        quote.status = "confirmed"
-        session.add(quote)
-    elif body.action == "edit" and quote:
+    # A flag with no NormalizedQuote (e.g. "unmatched_item": the item never matched
+    # an RFx line, so no quote was ever normalized for it) has no price/status to
+    # change — accept/exclude/ask_supplier still just resolve the flag itself.
+    if body.action == "accept":
+        if quote:
+            quote.status = "confirmed"
+            session.add(quote)
+    elif body.action == "edit":
+        if quote is None:
+            raise HTTPException(400, "edit requires a normalized quote, and this flag has none")
         if body.value is None or not body.reason:
             raise HTTPException(400, "edit requires a value and a reason")
         quote.eur_kg_net_dap = body.value
         quote.status = "edited"
         session.add(quote)
-    elif body.action == "exclude" and quote:
-        quote.status = "excluded"
-        session.add(quote)
-    elif body.action == "ask_supplier" and quote:
-        quote.status = "ask_supplier"
-        session.add(quote)
+    elif body.action == "exclude":
+        if quote:
+            quote.status = "excluded"
+            session.add(quote)
+    elif body.action == "ask_supplier":
+        if quote:
+            quote.status = "ask_supplier"
+            session.add(quote)
     elif body.action == "override":
         pass  # eligibility overrides are handled via the eligibility record, not a flag
     else:
-        raise HTTPException(400, f"unknown or inapplicable action: {body.action}")
+        raise HTTPException(400, f"unknown action: {body.action}")
 
     flag.resolved = True
     session.add(flag)
