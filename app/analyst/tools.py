@@ -245,3 +245,170 @@ class AnalystTools:
         if line_id:
             rows = [r for r in rows if r["line_id"] == line_id]
         return {"rows": rows, "count": len(rows)}
+
+    def questionnaire_answers(self, supplier_name: str | None = None, group: str | None = None) -> dict:
+        """Supplier-level data: what each supplier actually answered (or
+        didn't) against this RFQ's own questionnaire — real QaAnswer rows
+        from real document extraction, matched against the draft's
+        question text/group so the answer is legible, not just a q_id.
+        """
+        from app.copilot.tools import get_current_draft
+        from app.models import QaAnswer, Supplier
+        from app.schemas.draft import RfxDraft
+
+        if self.session is None or self.rfx_id is None:
+            return {"answers": [], "unanswered": [], "note": "no DB session available"}
+
+        draft = RfxDraft.model_validate(get_current_draft(self.session, self.rfx_id))
+        questions_by_id = {q.q_id: q for q in draft.questionnaire}
+
+        suppliers = {
+            s.id: s for s in self.session.exec(select(Supplier).where(Supplier.rfx_id == self.rfx_id)).all()
+        }
+        rows = self.session.exec(select(QaAnswer).where(QaAnswer.supplier_id.in_(suppliers.keys()))).all()
+
+        answers, answered_by_supplier = [], {}
+        for a in rows:
+            supplier = suppliers.get(a.supplier_id)
+            if supplier is None:
+                continue
+            if supplier_name and supplier_name.lower() not in supplier.name.lower():
+                continue
+            question = questions_by_id.get(a.q_id)
+            if group and (question is None or question.group != group):
+                continue
+            answers.append(
+                {
+                    "supplier": supplier.name,
+                    "q_id": a.q_id,
+                    "question": question.text if question else None,
+                    "group": question.group if question else None,
+                    "answer": a.answer,
+                    "result": a.result,
+                }
+            )
+            answered_by_supplier.setdefault(a.supplier_id, set()).add(a.q_id)
+
+        unanswered = []
+        for supplier in suppliers.values():
+            if supplier_name and supplier_name.lower() not in supplier.name.lower():
+                continue
+            answered = answered_by_supplier.get(supplier.id, set())
+            for q in draft.questionnaire:
+                if group and q.group != group:
+                    continue
+                if q.q_id not in answered:
+                    unanswered.append({"supplier": supplier.name, "q_id": q.q_id, "question": q.text})
+
+        return {"answers": answers, "unanswered": unanswered, "count": len(answers)}
+
+    def rfx_summary(self) -> dict:
+        """RFQ-level data: this RFQ's own scope and commercial terms, plus
+        line/supplier/question counts — the buyer's draft itself, not a
+        quote or comparison number."""
+        from app.copilot.tools import get_current_draft
+        from app.schemas.draft import RfxDraft
+
+        if self.session is None or self.rfx_id is None:
+            return {"note": "no DB session available"}
+        draft = RfxDraft.model_validate(get_current_draft(self.session, self.rfx_id))
+        return {
+            "scope": draft.scope.model_dump(),
+            "terms": draft.terms.model_dump(),
+            "line_count": len(draft.lines),
+            "questionnaire_count": len(draft.questionnaire),
+            "supplier_count": len(self.all_supplier_ids),
+        }
+
+    def sku_breakdown(self, line_id: str | None = None) -> dict:
+        """SKU-wise price and quantity: for each line, the RFQ's own
+        requested volume plus every supplier's quoted price and the
+        implied spend at that price and volume — cheapest first."""
+        df = self.quotes.copy()
+        if line_id:
+            df = df[df.line_id == line_id]
+
+        lines = []
+        for lid, group in df.groupby("line_id"):
+            volume = float(group["volume_kg"].iloc[0]) if not group.empty else None
+            offers = []
+            for _, row in group.sort_values("eur_kg_net_dap", na_position="last").iterrows():
+                price = row["eur_kg_net_dap"]
+                spend = round(price * volume, 2) if price is not None and volume is not None else None
+                offers.append(
+                    {
+                        "supplier_id": row["supplier_id"],
+                        "supplier_name": row["supplier_name"],
+                        "price_eur_kg_net_dap": price,
+                        "implied_spend_eur": spend,
+                        "eligibility": row["eligibility"],
+                        "status": row["status"],
+                    }
+                )
+            lines.append(
+                {
+                    "line_id": lid,
+                    "species": group["species"].iloc[0],
+                    "form": group["form"].iloc[0],
+                    "grade": group["grade"].iloc[0],
+                    "requested_volume_kg": volume,
+                    "offers": offers,
+                }
+            )
+        return {"lines": sorted(lines, key=lambda l: l["line_id"])}
+
+    def location_breakdown(self) -> dict:
+        """Delivery-location breakdown: where each supplier ships from
+        (their own stated incoterm + place, from real extracted quotes)
+        and the freight adder actually available for that origin — real
+        buyer reference data (04_buyer_reference_data/freight_adders...),
+        not invented. Useful for reviewing shipping-distance/cost
+        implications by supplier before awarding.
+        """
+        from app.copilot.tools import get_current_draft
+        from app.models import Document, ExtractedItem, Supplier
+        from app.normalize.reference import load_freight_adders
+        from app.schemas.draft import RfxDraft
+
+        if self.session is None or self.rfx_id is None:
+            return {"suppliers": [], "note": "no DB session available"}
+
+        draft = RfxDraft.model_validate(get_current_draft(self.session, self.rfx_id))
+        freight_adders = load_freight_adders()
+        suppliers = {
+            s.id: s for s in self.session.exec(select(Supplier).where(Supplier.rfx_id == self.rfx_id)).all()
+        }
+
+        rows = self.session.exec(
+            select(ExtractedItem, Document)
+            .join(Document, ExtractedItem.document_id == Document.id)
+            .where(Document.supplier_id.in_(suppliers.keys()))
+        ).all()
+
+        origins_by_supplier: dict[int, set[str]] = {}
+        for item, document in rows:
+            fields = item.fields_json or {}
+            incoterm, place = fields.get("incoterm"), fields.get("incoterm_place")
+            if incoterm and place:
+                origins_by_supplier.setdefault(document.supplier_id, set()).add(f"{incoterm} {place}")
+
+        result = []
+        for supplier_id, supplier in suppliers.items():
+            origins = sorted(origins_by_supplier.get(supplier_id, []))
+            result.append(
+                {
+                    "supplier": supplier.name,
+                    "stated_origins": origins,
+                    "freight_adders_eur_kg": {o: freight_adders.get(o) for o in origins},
+                }
+            )
+
+        return {
+            "delivery_terms": {
+                "incoterm": draft.scope.incoterm,
+                "place": draft.scope.incoterm_place,
+                "buyer_site": draft.scope.buyer_site,
+            },
+            "known_freight_adders_eur_kg": freight_adders,
+            "suppliers": result,
+        }

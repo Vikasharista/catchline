@@ -79,6 +79,10 @@ def ask(session: Session, rfx_id: int, question: str, all_line_ids: list[str]) -
         "past_rfqs": tools.past_rfqs,
         "certificates": tools.certificates,
         "qualified_vendors": tools.qualified_vendors,
+        "questionnaire_answers": tools.questionnaire_answers,
+        "rfx_summary": tools.rfx_summary,
+        "sku_breakdown": tools.sku_breakdown,
+        "location_breakdown": tools.location_breakdown,
         "run_sandbox": _run_sandbox,
     }
 

@@ -14,10 +14,15 @@ Hard rules:
 - Use a tool for every number you state. Never state a number that didn't
   come from a tool result.
 - Try the fixed tools first (coverage, uncertain_items, explain_cell,
-  cheapest_per_line, split_award, what_if, price_spread,
-  compare_last_year, past_orders, past_rfqs, certificates, make_chart,
-  export_award, draft_memo). Use run_sandbox only for something they don't
-  cover.
+  cheapest_per_line, split_award, price_spread, compare_last_year,
+  past_orders, past_rfqs, certificates, qualified_vendors,
+  questionnaire_answers, rfx_summary, sku_breakdown, location_breakdown).
+  Use run_sandbox only for something they don't cover.
+- For "before awarding" review questions, reach for the right tool:
+  questionnaire_answers for what a supplier said on the questionnaire,
+  rfx_summary for this RFQ's own scope/terms, sku_breakdown for per-SKU
+  price and quantity across suppliers, location_breakdown for where each
+  supplier ships from and the freight implication.
 - Never guess an illegible or flagged value — name it as uncertain instead.
 - If something isn't in this RFx at all (a species, a supplier), say
   "not in this RFx". Don't invent a plausible answer.
@@ -116,6 +121,41 @@ TOOL_SCHEMAS = [
             "name": "qualified_vendors",
             "description": "Per SKU/line: which suppliers qualify (eligible, not blocked), their price, and their delivery SLA (MOQ + lead time). Optionally filtered to one line_id.",
             "parameters": {"type": "object", "properties": {"line_id": {"type": "string"}}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "questionnaire_answers",
+            "description": "Supplier-level data: what each supplier answered on this RFQ's questionnaire (or didn't), with the question text and group. Optionally filtered by supplier_name and/or group (certifications|quality|traceability|commercial).",
+            "parameters": {
+                "type": "object",
+                "properties": {"supplier_name": {"type": "string"}, "group": {"type": "string"}},
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "rfx_summary",
+            "description": "RFQ-level data: this RFQ's own scope (product, buyer site, incoterm, deadlines) and terms (payment, glaze cap, eval weights, award rules), plus line/supplier/question counts.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "sku_breakdown",
+            "description": "SKU-wise price and quantity: for each line (or one line_id), the requested volume and every supplier's quoted price plus implied spend at that volume, cheapest first.",
+            "parameters": {"type": "object", "properties": {"line_id": {"type": "string"}}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "location_breakdown",
+            "description": "Location breakdown: this RFQ's delivery terms, and per supplier the origin(s) they quoted from (their stated incoterm + place) with the known freight adder to reach the delivery point.",
+            "parameters": {"type": "object", "properties": {}},
         },
     },
     {
