@@ -16,7 +16,7 @@
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
       <h2 style="font-size:15px">RFQ — {{ heading }}</h2>
       <div style="display:flex;align-items:center;gap:8px">
-        <span class="badge badge-neutral">{{ pending_count }} pending</span>
+        <span class="badge badge-neutral" id="pending-count-badge">{{ pending_count }} pending</span>
         <button class="btn btn-primary" id="review-send-btn">Review &amp; Send</button>
       </div>
     </div>
@@ -131,27 +131,43 @@ function renderSectionDetail(key, draft) {
 async function refreshDraft() {
   const data = await safeFetch(`/api/rfx/${RFX_ID}`);
   currentDraft = data.draft;
+  const pendingBySection = {};
+  for (const p of data.pending_proposals || []) {
+    (pendingBySection[p.section] = pendingBySection[p.section] || []).push(p);
+  }
+  document.getElementById('pending-count-badge').textContent = `${(data.pending_proposals || []).length} pending`;
   const sectionsEl = document.getElementById('sections');
   const sectionKeys = ['scope', 'lines', 'questionnaire', 'terms'];
   sectionsEl.innerHTML = sectionKeys.map(key => {
     const status = data.sections[key] || 'drafting';
     const badgeClass = status === 'signed_off' ? 'badge-success' : status === 'reopened' ? 'badge-amber' : 'badge-neutral';
+    const pending = pendingBySection[key] || [];
     let summary = '';
     if (key === 'lines') summary = `${(data.draft.lines || []).length} line(s)`;
     if (key === 'scope') summary = data.draft.scope.title || 'not set';
     if (key === 'questionnaire') summary = `${(data.draft.questionnaire || []).length} question(s)`;
     if (key === 'terms') summary = data.draft.terms.payment_terms || 'not set';
+    if (pending.length) summary += ` · ${pending.length} pending proposal${pending.length > 1 ? 's' : ''}`;
     const isOpen = expandedSection === key;
     return `<div style="flex-shrink:0;border:1px solid var(--cl-border);border-radius:8px;overflow:hidden">
       <div style="padding:10px 12px;cursor:pointer" onclick="toggleSection('${key}')">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <strong style="font-size:13px;text-transform:capitalize">${key} <span style="color:var(--cl-text-faint);font-weight:400">${isOpen ? '▾' : '▸'}</span></strong>
-          <span class="badge ${badgeClass}">${status}</span>
+          <div style="display:flex;gap:6px;align-items:center">
+            ${pending.length ? `<span class="badge badge-amber">${pending.length} pending</span>` : ''}
+            <span class="badge ${badgeClass}">${status}</span>
+          </div>
         </div>
         <div style="font-size:12px;color:var(--cl-text-muted);margin-top:4px">${summary}</div>
       </div>
       ${isOpen ? `<div style="padding:0 12px 12px;border-top:1px solid var(--cl-border);padding-top:10px">
-        <div style="max-height:360px;overflow:auto">${renderSectionDetail(key, data.draft)}</div>
+        <div style="max-height:360px;overflow:auto">
+          ${renderSectionDetail(key, data.draft)}
+          ${pending.length ? `<div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
+            <div style="font-size:11px;font-weight:600;color:var(--cl-text-muted);text-transform:uppercase">Pending proposals</div>
+            ${pending.map(renderProposalCard).join('')}
+          </div>` : ''}
+        </div>
         <div style="margin-top:10px"><button class="btn btn-secondary" style="height:26px;font-size:11px" onclick="event.stopPropagation();signOff('${key}')">Sign off</button></div>
       </div>` : ''}
     </div>`;
