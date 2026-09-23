@@ -4,12 +4,14 @@ import hashlib
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from sqlmodel import Session, select
 
 from app.api.deps import get_session
+from app.channel.eml_preview import parse_eml_file
 from app.channel.inbox import copy_to_inbox, guess_supplier, list_seed_files, save_upload
 from app.events import emit
-from app.models import AuditLog, Document, Supplier
+from app.models import AuditLog, Document, ExtractedItem, Supplier
 from app.pipeline import process_certificate_document, process_document
 
 router = APIRouter(prefix="/api")
@@ -68,6 +70,66 @@ async def upload_document(rfx_id: int, file: UploadFile, session: Session = Depe
     if doc is None:
         return {"needs_supplier_pick": True, "filename": dest.name}
     return {"id": doc.id, "filename": doc.filename, "supplier_id": doc.supplier_id}
+
+
+@router.get("/rfx/{rfx_id}/documents")
+def list_documents(rfx_id: int, session: Session = Depends(get_session)):
+    """All documents received for this RFx so far — the Inbox screen was
+    losing this on reload/navigation (only ever built from the JS response
+    of simulate/upload calls, never re-fetched), the same class of bug the
+    chat panel had before it got a history endpoint.
+    """
+    supplier_ids = [s.id for s in session.exec(select(Supplier).where(Supplier.rfx_id == rfx_id)).all()]
+    if not supplier_ids:
+        return []
+    docs = session.exec(
+        select(Document).where(Document.supplier_id.in_(supplier_ids)).order_by(Document.received_at)
+    ).all()
+    result = []
+    for d in docs:
+        item_count = len(session.exec(select(ExtractedItem).where(ExtractedItem.document_id == d.id)).all())
+        result.append(
+            {
+                "id": d.id,
+                "filename": d.filename,
+                "supplier_id": d.supplier_id,
+                "kind": d.kind,
+                "status": d.status,
+                "item_count": item_count,
+                "received_at": d.received_at,
+            }
+        )
+    return result
+
+
+@router.get("/documents/{document_id}/file")
+def document_file(document_id: int, session: Session = Depends(get_session)):
+    """Raw bytes of a received document — lets the Inbox screen render an
+    image inline and offer a real "open" link for PDF/docx/xlsx/eml,
+    instead of showing only a filename and a status badge.
+    """
+    document = session.get(Document, document_id)
+    if document is None:
+        raise HTTPException(404, "document not found")
+    path = Path(document.path)
+    if not path.exists():
+        raise HTTPException(404, "file missing on disk")
+    return FileResponse(path, filename=document.filename)
+
+
+@router.get("/documents/{document_id}/preview")
+def document_preview(document_id: int, session: Session = Depends(get_session)):
+    """Structured preview for the Inbox screen: a parsed From/To/Subject/
+    body for a .eml reply (so it renders as an actual email, not a
+    filename), or just the kind/filename for other formats (rendered as an
+    image, or a file link, by the frontend)."""
+    document = session.get(Document, document_id)
+    if document is None:
+        raise HTTPException(404, "document not found")
+    path = Path(document.path)
+    if document.kind == "eml" and path.exists():
+        return {"kind": "eml", **parse_eml_file(path)}
+    return {"kind": document.kind, "filename": document.filename}
 
 
 def _extract_one(session: Session, document: Document, *, live: bool) -> dict:

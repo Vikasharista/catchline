@@ -322,3 +322,30 @@ def send_rfx(rfx_id: int, session: Session = Depends(get_session)):
     session.add(AuditLog(actor="buyer", action="rfx_sent", entity=f"rfx:{rfx_id}", after_json={"emails": len(paths)}))
     session.commit()
     return {"status": "sent", "emails_written": len(paths)}
+
+
+@router.get("/rfx/{rfx_id}/outbox")
+def rfx_outbox(rfx_id: int, session: Session = Depends(get_session)):
+    """What was actually "emailed" to each supplier on Send, parsed back
+    out of the real .eml files app.channel.outbox wrote — so the demo can
+    show the outbound RFQ the same way it shows an inbound reply, instead
+    of the buyer only ever seeing the pre-send PDF/xlsx preview.
+    """
+    from app.channel.eml_preview import parse_eml_file
+    from app.config import settings
+
+    rfx = session.get(Rfx, rfx_id)
+    if rfx is None:
+        raise HTTPException(404, "rfx not found")
+
+    suppliers = session.exec(select(Supplier).where(Supplier.rfx_id == rfx_id)).all()
+    outbox_dir = settings.data_dir / "outbox"
+    messages = []
+    for s in suppliers:
+        if not s.email:
+            continue
+        safe_name = s.email.replace("@", "_at_").replace(".", "_")
+        matches = sorted(outbox_dir.glob(f"{safe_name}_*.eml"), key=lambda p: p.stat().st_mtime, reverse=True)
+        if matches:
+            messages.append({"supplier_id": s.id, "supplier_name": s.name, **parse_eml_file(matches[0])})
+    return {"messages": messages}

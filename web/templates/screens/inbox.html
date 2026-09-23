@@ -1,25 +1,38 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="card">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-    <h2 style="font-size:15px">Supplier replies</h2>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-secondary" id="simulate-btn">Simulate replies arriving</button>
-      <button class="btn btn-primary" id="seed-extract-all-btn">Seed &amp; extract all</button>
-    </div>
+<div style="display:flex;flex-direction:column;gap:16px">
+
+  <div class="card">
+    <h2 style="font-size:15px;margin-bottom:4px">Sent to suppliers</h2>
+    <p style="font-size:11.5px;color:var(--cl-text-muted);margin-bottom:10px">
+      The actual RFQ email written on Send, for each supplier that has one.
+    </p>
+    <div id="outbox-list" style="display:flex;flex-direction:column;gap:10px"></div>
   </div>
-  <p style="font-size:11.5px;color:var(--cl-text-muted);margin-bottom:8px">
-    "Seed &amp; extract all" copies all 5 supplier replies and 4 certificates into the inbox and runs real extraction
-    on each (a live LLM call, or its cache) — populates Review, Compare and Award with real data in one step.
-  </p>
-  <div id="error-banner" style="display:none;background:var(--cl-red-bg);color:var(--cl-red);border-radius:8px;padding:10px 12px;font-size:12px;margin-bottom:12px"></div>
-  <div id="summary-strip" style="font-size:12px;color:var(--cl-text-muted);margin-bottom:14px"></div>
-  <div id="doc-list" style="display:flex;flex-direction:column;gap:8px"></div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h2 style="font-size:15px">Supplier replies</h2>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary" id="simulate-btn">Simulate replies arriving</button>
+        <button class="btn btn-primary" id="seed-extract-all-btn">Seed &amp; extract all</button>
+      </div>
+    </div>
+    <p style="font-size:11.5px;color:var(--cl-text-muted);margin-bottom:8px">
+      "Seed &amp; extract all" copies all 5 supplier replies and 4 certificates into the inbox and runs real extraction
+      on each (a live LLM call, or its cache) — populates Review, Compare and Award with real data in one step.
+      Replies arrive as different real formats — spreadsheet, PDF, Word doc, a photo of a rate card, a plain email — rendered here as that format.
+    </p>
+    <div id="error-banner" style="display:none;background:var(--cl-red-bg);color:var(--cl-red);border-radius:8px;padding:10px 12px;font-size:12px;margin-bottom:12px"></div>
+    <div id="summary-strip" style="font-size:12px;color:var(--cl-text-muted);margin-bottom:14px"></div>
+    <div id="doc-list" style="display:flex;flex-direction:column;gap:10px"></div>
+  </div>
 </div>
 
 <script>
 const RFX_ID = {{ rfx_id }};
 let docs = [];
+const previewCache = {};
 
 async function safeFetch(url, opts) {
   const res = await fetch(url, opts);
@@ -45,20 +58,114 @@ function clearError() {
   document.getElementById('error-banner').style.display = 'none';
 }
 
-function renderDocs() {
-  const list = document.getElementById('doc-list');
-  list.innerHTML = docs.map(d => `
-    <div class="card" style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px">
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str == null ? '' : String(str);
+  return div.innerHTML;
+}
+
+const KIND_ICON = { xlsx: '📊', pdf: '📄', docx: '📝', certificate: '📄', unknown: '📎' };
+
+function renderMailCard(msg) {
+  const attachmentsHtml = (msg.attachments || []).length
+    ? `<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">${
+        msg.attachments.map(a => `<span class="badge badge-neutral">📎 ${escapeHtml(a)}</span>`).join('')
+      }</div>`
+    : '';
+  return `<div style="border:1px solid var(--cl-border);border-radius:8px;padding:12px;background:var(--cl-bg-subtle)">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:4px">
+      <strong style="font-size:12.5px">${escapeHtml(msg.subject || '(no subject)')}</strong>
+      <span style="font-size:10.5px;color:var(--cl-text-faint)">${escapeHtml(msg.date || '')}</span>
+    </div>
+    <div style="font-size:11px;color:var(--cl-text-muted);margin-top:2px">
+      From ${escapeHtml(msg.from || '—')} &middot; To ${escapeHtml(msg.to || '—')}
+    </div>
+    <div style="font-size:12px;margin-top:8px;white-space:pre-wrap;line-height:1.5">${escapeHtml(msg.body || '')}</div>
+    ${attachmentsHtml}
+  </div>`;
+}
+
+async function loadOutbox() {
+  const el = document.getElementById('outbox-list');
+  try {
+    const data = await safeFetch(`/api/rfx/${RFX_ID}/outbox`);
+    if (!data.messages.length) {
+      el.innerHTML = '<div style="font-size:12px;color:var(--cl-text-faint)">Nothing sent yet — use "Review &amp; Send" on the RFQ screen.</div>';
+      return;
+    }
+    el.innerHTML = data.messages.map(m => `
       <div>
-        <strong style="font-size:13px">${d.filename}</strong>
+        <div style="font-size:11px;font-weight:600;color:var(--cl-text-muted);margin-bottom:4px">To ${escapeHtml(m.supplier_name)}</div>
+        ${renderMailCard(m)}
+      </div>`).join('');
+  } catch (err) {
+    el.innerHTML = '';
+  }
+}
+
+function renderDocCard(d) {
+  const statusBadgeClass = d.status === 'extracted' ? 'badge-success' : d.status === 'needs_attention' ? 'badge-red' : 'badge-neutral';
+  const statusLabel = d.status === 'extracted' ? `extracted${d.item_count != null ? ' · ' + d.item_count + ' items' : ''}` : d.status;
+  const head = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div>
+        <strong style="font-size:13px">${escapeHtml(d.filename)}</strong>
         <span style="font-size:11px;color:var(--cl-text-faint);margin-left:8px">supplier ${d.supplier_id}${d.kind === 'certificate' ? ' · certificate' : ''}</span>
       </div>
       <div style="display:flex;align-items:center;gap:8px">
-        <span id="status-${d.id}" class="badge badge-neutral">${d.initial_status || 'received'}</span>
+        <span id="status-${d.id}" class="badge ${statusBadgeClass}">${statusLabel}</span>
         <button class="btn btn-secondary" style="height:26px;font-size:11px" onclick="extractDoc(${d.id})">Extract</button>
       </div>
-    </div>`).join('');
+    </div>`;
+
+  let body = '';
+  if (d.kind === 'image') {
+    body = `<a href="/api/documents/${d.id}/file" target="_blank">
+      <img src="/api/documents/${d.id}/file" style="max-width:280px;max-height:200px;border-radius:6px;border:1px solid var(--cl-border);display:block" />
+    </a>`;
+  } else if (d.kind === 'eml') {
+    body = `<div id="eml-preview-${d.id}" style="font-size:12px;color:var(--cl-text-faint)">Loading email…</div>`;
+  } else {
+    const icon = KIND_ICON[d.kind] || '📎';
+    body = `<a class="btn btn-secondary" style="height:28px;font-size:11px;width:fit-content" href="/api/documents/${d.id}/file" target="_blank">${icon} Open ${escapeHtml(d.kind)} file</a>`;
+  }
+
+  return `<div class="card" style="padding:10px 12px">${head}${body}</div>`;
+}
+
+async function hydrateEmlPreviews() {
+  for (const d of docs) {
+    if (d.kind !== 'eml') continue;
+    const el = document.getElementById(`eml-preview-${d.id}`);
+    if (!el) continue;
+    try {
+      if (!previewCache[d.id]) {
+        previewCache[d.id] = await safeFetch(`/api/documents/${d.id}/preview`);
+      }
+      el.outerHTML = `<div id="eml-preview-${d.id}">${renderMailCard(previewCache[d.id])}</div>`;
+    } catch (err) {
+      el.textContent = 'Could not load email preview.';
+    }
+  }
+}
+
+function renderDocs() {
+  const list = document.getElementById('doc-list');
+  if (!docs.length) {
+    list.innerHTML = '<div style="font-size:12px;color:var(--cl-text-faint)">No documents yet — simulate replies arriving, or upload one.</div>';
+  } else {
+    list.innerHTML = docs.map(renderDocCard).join('');
+  }
   document.getElementById('summary-strip').textContent = `${docs.length} document(s) in inbox.`;
+  hydrateEmlPreviews();
+}
+
+async function loadDocuments() {
+  try {
+    docs = await safeFetch(`/api/rfx/${RFX_ID}/documents`);
+    renderDocs();
+  } catch (err) {
+    showError(err);
+  }
 }
 
 async function extractDoc(id) {
@@ -68,8 +175,10 @@ async function extractDoc(id) {
     clearError();
     const data = await safeFetch(`/api/documents/${id}/extract?live=false`, { method: 'POST' });
     statusEl.textContent = data.status + (data.items != null ? ` · ${data.items} items` : '');
+    statusEl.className = `badge ${data.status === 'extracted' ? 'badge-success' : 'badge-red'}`;
   } catch (err) {
     statusEl.textContent = 'failed';
+    statusEl.className = 'badge badge-red';
     showError(err);
   }
 }
@@ -77,12 +186,8 @@ async function extractDoc(id) {
 document.getElementById('simulate-btn').addEventListener('click', async () => {
   try {
     clearError();
-    const data = await safeFetch(`/api/rfx/${RFX_ID}/inbox/simulate`, { method: 'POST' });
-    docs = docs.concat(data.documents);
-    renderDocs();
-    if (data.unmatched.length) {
-      document.getElementById('summary-strip').textContent += ` ${data.unmatched.length} file(s) need a supplier picked manually.`;
-    }
+    await safeFetch(`/api/rfx/${RFX_ID}/inbox/simulate`, { method: 'POST' });
+    await loadDocuments();
   } catch (err) { showError(err); }
 });
 
@@ -93,9 +198,7 @@ document.getElementById('seed-extract-all-btn').addEventListener('click', async 
   try {
     clearError();
     const data = await safeFetch(`/api/rfx/${RFX_ID}/inbox/seed-and-extract-all?live=false`, { method: 'POST' });
-    docs = data.extracted.map(e => ({ id: e.id, filename: e.filename, supplier_id: null, kind: null, initial_status: `${e.status}${e.items != null ? ' · ' + e.items + ' items' : ''}` }))
-      .concat(data.failed.map(f => ({ id: f.id, filename: f.filename, supplier_id: null, kind: null, initial_status: 'failed' })));
-    renderDocs();
+    await loadDocuments();
     document.getElementById('summary-strip').textContent =
       `${data.documents_registered} document(s) registered · ${data.extracted.length} extracted · ${data.failed.length} failed`
       + (data.unmatched.length ? ` · ${data.unmatched.length} unmatched` : '');
@@ -110,6 +213,7 @@ document.getElementById('seed-extract-all-btn').addEventListener('click', async 
   }
 });
 
-renderDocs();
+loadOutbox();
+loadDocuments();
 </script>
 {% endblock %}
